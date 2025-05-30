@@ -6,6 +6,7 @@ export interface JobSearchParams {
   location?: string;
   page?: number;
   num_pages?: number;
+  source?: 'all' | 'jsearch' | 'linkedin';
 }
 
 export interface JSearchJob {
@@ -22,6 +23,7 @@ export interface JSearchJob {
   job_min_salary?: number;
   job_max_salary?: number;
   job_apply_link: string;
+  source?: string;
 }
 
 export interface JSearchResponse {

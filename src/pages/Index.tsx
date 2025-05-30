@@ -21,6 +21,7 @@ export interface Job {
   isSaved?: boolean;
   fitRating?: number;
   applyLink?: string;
+  source?: string;
 }
 
 const Index = () => {
@@ -29,7 +30,7 @@ const Index = () => {
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasSearched, setHasSearched] = useState(false);
-  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string} | null>(null);
+  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string, source: string} | null>(null);
 
   const convertJSearchJobToJob = (jsearchJob: JSearchJob): Job => {
     return {
@@ -43,15 +44,16 @@ const Index = () => {
       postedDate: formatPostedDate(jsearchJob.job_posted_at_datetime_utc),
       applyLink: jsearchJob.job_apply_link,
       isSaved: false,
-      fitRating: 0
+      fitRating: 0,
+      source: jsearchJob.source
     };
   };
 
-  const handleSearch = async (searchTerm: string, location: string, keywords: string) => {
-    console.log("Searching for:", { searchTerm, location, keywords });
+  const handleSearch = async (searchTerm: string, location: string, keywords: string, source: string = 'all') => {
+    console.log("Searching for:", { searchTerm, location, keywords, source });
     setIsLoading(true);
     setCurrentPage(1);
-    setLastSearchParams({ searchTerm, location, keywords });
+    setLastSearchParams({ searchTerm, location, keywords, source });
     
     try {
       // Combine search term and keywords
@@ -61,7 +63,8 @@ const Index = () => {
         query: query || undefined,
         location: location || undefined,
         page: 1,
-        num_pages: 1
+        num_pages: 1,
+        source: source as 'all' | 'jsearch' | 'linkedin'
       });
       
       if (response.status === 'OK' && response.data) {
@@ -70,7 +73,7 @@ const Index = () => {
         setHasSearched(true);
         toast({
           title: "Search completed",
-          description: `Found ${convertedJobs.length} jobs`,
+          description: `Found ${convertedJobs.length} jobs from ${source === 'all' ? 'multiple sources' : source}`,
         });
       } else {
         setJobs([]);
@@ -106,7 +109,8 @@ const Index = () => {
         query: query || undefined,
         location: lastSearchParams.location || undefined,
         page: nextPage,
-        num_pages: 1
+        num_pages: 1,
+        source: lastSearchParams.source as 'all' | 'jsearch' | 'linkedin'
       });
       
       if (response.status === 'OK' && response.data) {
@@ -177,7 +181,7 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Job Search Tool</h1>
-          <p className="text-lg text-gray-600">Find your perfect job from thousands of listings</p>
+          <p className="text-lg text-gray-600">Find your perfect job from LinkedIn and JSearch listings</p>
         </div>
 
         <Tabs defaultValue="search" className="w-full">

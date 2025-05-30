@@ -26,6 +26,17 @@ export const JobCard = ({ job, onSave, onUnsave }: JobCardProps) => {
     }
   };
 
+  const getSourceBadgeColor = (source?: string) => {
+    switch (source) {
+      case 'linkedin':
+        return 'bg-blue-100 text-blue-800';
+      case 'jsearch':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <Card className="h-full hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-white/90 backdrop-blur-sm hover:bg-white group">
       <CardHeader className="pb-3">
@@ -66,6 +77,11 @@ export const JobCard = ({ job, onSave, onUnsave }: JobCardProps) => {
             <Badge variant="secondary" className="text-xs">
               {job.type}
             </Badge>
+            {job.source && (
+              <Badge className={`text-xs ${getSourceBadgeColor(job.source)}`}>
+                {job.source === 'linkedin' ? 'LinkedIn' : job.source === 'jsearch' ? 'JSearch' : job.source}
+              </Badge>
+            )}
           </div>
           <span className="text-xs text-gray-500">{job.postedDate}</span>
         </div>
