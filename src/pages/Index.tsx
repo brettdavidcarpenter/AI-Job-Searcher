@@ -1,9 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SearchHeader } from "@/components/SearchHeader";
 import { JobCard } from "@/components/JobCard";
 import { SavedJobs } from "@/components/SavedJobs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { searchJobs, formatSalary, formatLocation, formatPostedDate, type JSearchJob } from "@/services/jobSearchService";
+import { toast } from "@/hooks/use-toast";
 
 export interface Job {
   id: string;
@@ -16,92 +20,114 @@ export interface Job {
   postedDate: string;
   isSaved?: boolean;
   fitRating?: number;
+  applyLink?: string;
 }
 
-// Mock job data for demonstration
-const mockJobs: Job[] = [
-  {
-    id: "1",
-    title: "Senior Software Engineer",
-    company: "Tech Innovations Inc.",
-    location: "San Francisco, CA",
-    salary: "$120,000 - $180,000",
-    description: "We're looking for a Senior Software Engineer to join our dynamic team. You'll work on cutting-edge technologies and help build scalable applications that serve millions of users.",
-    type: "Full-time",
-    postedDate: "2 days ago"
-  },
-  {
-    id: "2",
-    title: "Product Manager",
-    company: "StartupCorp",
-    location: "New York, NY",
-    salary: "$100,000 - $150,000",
-    description: "Join our product team to drive innovation and strategy. You'll work closely with engineering and design teams to deliver exceptional user experiences.",
-    type: "Full-time",
-    postedDate: "1 day ago"
-  },
-  {
-    id: "3",
-    title: "UX Designer",
-    company: "Design Studio Pro",
-    location: "Remote",
-    salary: "$80,000 - $120,000",
-    description: "Create beautiful and intuitive user experiences for our clients. You'll work on diverse projects ranging from mobile apps to enterprise software.",
-    type: "Contract",
-    postedDate: "3 days ago"
-  },
-  {
-    id: "4",
-    title: "Data Scientist",
-    company: "Analytics Plus",
-    location: "Austin, TX",
-    salary: "$110,000 - $160,000",
-    description: "Use machine learning and statistical analysis to extract insights from large datasets. Help drive data-driven decision making across the organization.",
-    type: "Full-time",
-    postedDate: "5 days ago"
-  },
-  {
-    id: "5",
-    title: "Marketing Manager",
-    company: "Growth Marketing Co.",
-    location: "Chicago, IL",
-    salary: "$75,000 - $110,000",
-    description: "Lead our marketing initiatives and develop strategies to increase brand awareness. You'll manage campaigns across multiple channels and analyze performance metrics.",
-    type: "Full-time",
-    postedDate: "1 week ago"
-  },
-  {
-    id: "6",
-    title: "DevOps Engineer",
-    company: "Cloud Solutions Ltd.",
-    location: "Seattle, WA",
-    salary: "$130,000 - $190,000",
-    description: "Build and maintain our cloud infrastructure. You'll work with containerization, CI/CD pipelines, and monitoring systems to ensure reliable deployments.",
-    type: "Full-time",
-    postedDate: "4 days ago"
-  }
-];
-
 const Index = () => {
-  const [jobs, setJobs] = useState<Job[]>(mockJobs);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(mockJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string} | null>(null);
 
-  const handleSearch = (searchTerm: string, location: string, keywords: string) => {
+  const convertJSearchJobToJob = (jsearchJob: JSearchJob): Job => {
+    return {
+      id: jsearchJob.job_id,
+      title: jsearchJob.job_title,
+      company: jsearchJob.employer_name,
+      location: formatLocation(jsearchJob),
+      salary: formatSalary(jsearchJob),
+      description: jsearchJob.job_description,
+      type: jsearchJob.job_employment_type || 'Full-time',
+      postedDate: formatPostedDate(jsearchJob.job_posted_at_datetime_utc),
+      applyLink: jsearchJob.job_apply_link,
+      isSaved: false,
+      fitRating: 0
+    };
+  };
+
+  const handleSearch = async (searchTerm: string, location: string, keywords: string) => {
     console.log("Searching for:", { searchTerm, location, keywords });
+    setIsLoading(true);
+    setCurrentPage(1);
+    setLastSearchParams({ searchTerm, location, keywords });
     
-    const filtered = jobs.filter(job => {
-      const matchesTitle = job.title.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesLocation = location === "" || job.location.toLowerCase().includes(location.toLowerCase());
-      const matchesKeywords = keywords === "" || 
-        job.description.toLowerCase().includes(keywords.toLowerCase()) ||
-        job.title.toLowerCase().includes(keywords.toLowerCase()) ||
-        job.company.toLowerCase().includes(keywords.toLowerCase());
+    try {
+      // Combine search term and keywords
+      const query = [searchTerm, keywords].filter(Boolean).join(' ');
       
-      return matchesTitle && matchesLocation && matchesKeywords;
-    });
+      const response = await searchJobs({
+        query: query || undefined,
+        location: location || undefined,
+        page: 1,
+        num_pages: 1
+      });
+      
+      if (response.status === 'OK' && response.data) {
+        const convertedJobs = response.data.map(convertJSearchJobToJob);
+        setJobs(convertedJobs);
+        setHasSearched(true);
+        toast({
+          title: "Search completed",
+          description: `Found ${convertedJobs.length} jobs`,
+        });
+      } else {
+        setJobs([]);
+        toast({
+          title: "No jobs found",
+          description: "Try adjusting your search criteria",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setJobs([]);
+      toast({
+        title: "Search failed",
+        description: "There was an error searching for jobs. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMoreJobs = async () => {
+    if (!lastSearchParams || isLoading) return;
     
-    setFilteredJobs(filtered);
+    setIsLoading(true);
+    const nextPage = currentPage + 1;
+    
+    try {
+      const query = [lastSearchParams.searchTerm, lastSearchParams.keywords].filter(Boolean).join(' ');
+      
+      const response = await searchJobs({
+        query: query || undefined,
+        location: lastSearchParams.location || undefined,
+        page: nextPage,
+        num_pages: 1
+      });
+      
+      if (response.status === 'OK' && response.data) {
+        const convertedJobs = response.data.map(convertJSearchJobToJob);
+        setJobs(prev => [...prev, ...convertedJobs]);
+        setCurrentPage(nextPage);
+        toast({
+          title: "More jobs loaded",
+          description: `Loaded ${convertedJobs.length} more jobs`,
+        });
+      }
+    } catch (error) {
+      console.error('Load more error:', error);
+      toast({
+        title: "Failed to load more jobs",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSaveJob = (job: Job) => {
@@ -113,18 +139,29 @@ const Index = () => {
       
       // Update the job in the main list
       setJobs(jobs.map(j => j.id === job.id ? { ...j, isSaved: true } : j));
-      setFilteredJobs(filteredJobs.map(j => j.id === job.id ? { ...j, isSaved: true } : j));
+      
+      toast({
+        title: "Job saved",
+        description: `${job.title} has been saved to your list`,
+      });
     }
   };
 
   const handleUnsaveJob = (jobId: string) => {
+    const job = savedJobs.find(j => j.id === jobId);
     console.log("Unsaving job:", jobId);
     
     setSavedJobs(savedJobs.filter(job => job.id !== jobId));
     
     // Update the job in the main list
     setJobs(jobs.map(j => j.id === jobId ? { ...j, isSaved: false } : j));
-    setFilteredJobs(filteredJobs.map(j => j.id === jobId ? { ...j, isSaved: false } : j));
+    
+    if (job) {
+      toast({
+        title: "Job removed",
+        description: `${job.title} has been removed from your saved jobs`,
+      });
+    }
   };
 
   const handleRateJob = (jobId: string, rating: number) => {
@@ -140,7 +177,7 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Job Search Tool</h1>
-          <p className="text-lg text-gray-600">Find your perfect job and track your applications</p>
+          <p className="text-lg text-gray-600">Find your perfect job from thousands of listings</p>
         </div>
 
         <Tabs defaultValue="search" className="w-full">
@@ -154,21 +191,57 @@ const Index = () => {
           <TabsContent value="search" className="space-y-6">
             <SearchHeader onSearch={handleSearch} />
             
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredJobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  onSave={handleSaveJob}
-                  onUnsave={handleUnsaveJob}
-                />
-              ))}
-            </div>
+            {isLoading && jobs.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <span className="ml-2 text-lg text-gray-600">Searching for jobs...</span>
+              </div>
+            )}
+            
+            {jobs.length > 0 && (
+              <>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {jobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onSave={handleSaveJob}
+                      onUnsave={handleUnsaveJob}
+                    />
+                  ))}
+                </div>
+                
+                <div className="flex justify-center mt-8">
+                  <Button 
+                    onClick={loadMoreJobs}
+                    disabled={isLoading}
+                    variant="outline"
+                    className="px-8 py-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Loading more jobs...
+                      </>
+                    ) : (
+                      'Load More Jobs'
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
 
-            {filteredJobs.length === 0 && (
+            {hasSearched && jobs.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-xl text-gray-500">No jobs found matching your criteria.</p>
-                <p className="text-gray-400 mt-2">Try adjusting your search filters.</p>
+                <p className="text-gray-400 mt-2">Try adjusting your search filters or using different keywords.</p>
+              </div>
+            )}
+
+            {!hasSearched && !isLoading && (
+              <div className="text-center py-12">
+                <p className="text-xl text-gray-500">Search for jobs to get started!</p>
+                <p className="text-gray-400 mt-2">Use the search form above to find relevant job opportunities.</p>
               </div>
             )}
           </TabsContent>

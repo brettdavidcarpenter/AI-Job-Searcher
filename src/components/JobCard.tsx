@@ -1,5 +1,5 @@
 
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,12 @@ export const JobCard = ({ job, onSave, onUnsave }: JobCardProps) => {
       onUnsave(job.id);
     } else {
       onSave(job);
+    }
+  };
+
+  const handleApplyClick = () => {
+    if (job.applyLink) {
+      window.open(job.applyLink, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -63,6 +69,19 @@ export const JobCard = ({ job, onSave, onUnsave }: JobCardProps) => {
           </div>
           <span className="text-xs text-gray-500">{job.postedDate}</span>
         </div>
+
+        {job.applyLink && (
+          <div className="pt-2">
+            <Button 
+              onClick={handleApplyClick}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              size="sm"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Apply Now
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
