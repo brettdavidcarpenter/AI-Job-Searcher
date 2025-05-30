@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface JobSearchParams {
   query?: string;
   location?: string;
+  keywords?: string;
   page?: number;
   num_pages?: number;
   source?: 'all' | 'jsearch' | 'linkedin';

@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query = '', location = '', page = 1, num_pages = 1, source = 'all' } = await req.json()
+    const { query = '', location = '', keywords = '', page = 1, num_pages = 1, source = 'all' } = await req.json()
 
     // Get the RAPIDAPI_KEY from Supabase secrets
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY')
@@ -26,9 +26,10 @@ serve(async (req) => {
     // Search JSearch API if source is 'jsearch' or 'all'
     if (source === 'jsearch' || source === 'all') {
       try {
-        let searchQuery = query
+        // Combine query and keywords for JSearch
+        let searchQuery = [query, keywords].filter(Boolean).join(' ')
         if (location) {
-          searchQuery = `${query} in ${location}`.trim()
+          searchQuery = `${searchQuery} in ${location}`.trim()
         }
         
         const jsearchUrl = new URL('https://jsearch.p.rapidapi.com/search')
@@ -70,7 +71,6 @@ serve(async (req) => {
     // Search LinkedIn API if source is 'linkedin' or 'all'
     if (source === 'linkedin' || source === 'all') {
       try {
-        // Use the correct LinkedIn API endpoint and parameters
         const linkedinUrl = new URL('https://linkedin-job-search-api.p.rapidapi.com/active-jb-7d')
         
         // Calculate offset based on page (assuming 10 results per page)
@@ -90,7 +90,12 @@ serve(async (req) => {
           linkedinUrl.searchParams.append('location_filter', `"${location}"`)
         }
 
-        console.log('Searching LinkedIn with query:', query, 'location:', location)
+        // Use description_filter for keywords
+        if (keywords) {
+          linkedinUrl.searchParams.append('description_filter', keywords)
+        }
+
+        console.log('Searching LinkedIn with query:', query, 'location:', location, 'keywords:', keywords)
         console.log('LinkedIn URL:', linkedinUrl.toString())
 
         const linkedinResponse = await fetch(linkedinUrl.toString(), {
@@ -164,7 +169,7 @@ serve(async (req) => {
       JSON.stringify({
         status: 'OK',
         request_id: `multi_search_${Date.now()}`,
-        parameters: { query, location, page, source },
+        parameters: { query, location, keywords, page, source },
         data: limitedJobs,
         num_pages: 1
       }),
