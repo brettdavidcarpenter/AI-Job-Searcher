@@ -70,16 +70,25 @@ serve(async (req) => {
     // Search LinkedIn API if source is 'linkedin' or 'all'
     if (source === 'linkedin' || source === 'all') {
       try {
-        const linkedinUrl = new URL('https://linkedin-job-search-api.p.rapidapi.com/jobs')
+        // Use the correct LinkedIn API endpoint and parameters
+        const linkedinUrl = new URL('https://linkedin-job-search-api.p.rapidapi.com/active-jb-7d')
         
-        // Use proper query parameters for LinkedIn API
+        // Calculate offset based on page (assuming 10 results per page)
+        const limit = 10
+        const offset = (page - 1) * limit
+        
+        linkedinUrl.searchParams.append('limit', limit.toString())
+        linkedinUrl.searchParams.append('offset', offset.toString())
+        
+        // Use title_filter for job title/query
         if (query) {
-          linkedinUrl.searchParams.append('query', query)
+          linkedinUrl.searchParams.append('title_filter', `"${query}"`)
         }
+        
+        // Use location_filter for location
         if (location) {
-          linkedinUrl.searchParams.append('location', location)
+          linkedinUrl.searchParams.append('location_filter', `"${location}"`)
         }
-        linkedinUrl.searchParams.append('page', page.toString())
 
         console.log('Searching LinkedIn with query:', query, 'location:', location)
         console.log('LinkedIn URL:', linkedinUrl.toString())
@@ -96,7 +105,7 @@ serve(async (req) => {
         
         if (linkedinResponse.ok) {
           const linkedinData = await linkedinResponse.json()
-          console.log('LinkedIn response data:', JSON.stringify(linkedinData, null, 2))
+          console.log('LinkedIn response data keys:', Object.keys(linkedinData))
           
           // Handle different possible response structures
           let linkedinJobs = []
@@ -107,24 +116,28 @@ serve(async (req) => {
             linkedinJobs = linkedinData.data
           } else if (Array.isArray(linkedinData)) {
             linkedinJobs = linkedinData
+          } else if (linkedinData.results && Array.isArray(linkedinData.results)) {
+            linkedinJobs = linkedinData.results
           }
+          
+          console.log('LinkedIn jobs found:', linkedinJobs.length)
           
           if (linkedinJobs.length > 0) {
             // Convert LinkedIn format to JSearch-like format for consistency
             const convertedJobs = linkedinJobs.map((job: any, index: number) => ({
-              job_id: job.id || job.job_id || `linkedin_${Date.now()}_${index}`,
-              job_title: job.title || job.job_title || job.name || 'No title',
-              employer_name: job.company || job.employer_name || job.company_name || 'Unknown Company',
-              job_city: job.location?.split(',')[0] || job.city || '',
-              job_state: job.location?.split(',')[1]?.trim() || job.state || '',
-              job_country: job.location?.split(',')[2]?.trim() || job.country || 'United States',
-              job_description: job.description || job.job_description || job.summary || '',
-              job_employment_type: job.employment_type || job.job_type || job.type || 'Full-time',
-              job_posted_at_datetime_utc: job.posted_at || job.posted_date || job.date || new Date().toISOString(),
-              job_apply_link: job.apply_link || job.apply_url || job.url || job.link || '',
-              job_min_salary: job.salary_min || job.min_salary,
-              job_max_salary: job.salary_max || job.max_salary,
-              job_salary_currency: job.salary_currency || 'USD',
+              job_id: job.id || job.job_id || job.jobId || `linkedin_${Date.now()}_${index}`,
+              job_title: job.title || job.job_title || job.jobTitle || job.name || 'No title',
+              employer_name: job.company || job.employer_name || job.companyName || job.company_name || 'Unknown Company',
+              job_city: job.city || job.location?.split(',')[0] || '',
+              job_state: job.state || job.location?.split(',')[1]?.trim() || '',
+              job_country: job.country || job.location?.split(',')[2]?.trim() || 'United States',
+              job_description: job.description || job.job_description || job.summary || job.snippet || '',
+              job_employment_type: job.employment_type || job.job_type || job.type || job.employmentType || 'Full-time',
+              job_posted_at_datetime_utc: job.posted_at || job.posted_date || job.postedDate || job.date || new Date().toISOString(),
+              job_apply_link: job.apply_link || job.apply_url || job.applyUrl || job.url || job.link || job.jobUrl || '',
+              job_min_salary: job.salary_min || job.min_salary || job.minSalary,
+              job_max_salary: job.salary_max || job.max_salary || job.maxSalary,
+              job_salary_currency: job.salary_currency || job.currency || 'USD',
               source: 'linkedin'
             }))
             
