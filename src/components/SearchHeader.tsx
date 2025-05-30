@@ -18,6 +18,7 @@ export const SearchHeader = ({ onSearch }: SearchHeaderProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Pass the job title and keywords separately, don't combine them
     onSearch(searchTerm, location, keywords, source);
   };
 
