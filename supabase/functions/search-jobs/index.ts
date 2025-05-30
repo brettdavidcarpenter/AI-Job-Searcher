@@ -80,7 +80,7 @@ serve(async (req) => {
         linkedinUrl.searchParams.append('limit', limit.toString())
         linkedinUrl.searchParams.append('offset', offset.toString())
         
-        // Use title_filter for job title/query
+        // Use title_filter for job title/query ONLY
         if (query) {
           linkedinUrl.searchParams.append('title_filter', `"${query}"`)
         }
@@ -90,7 +90,7 @@ serve(async (req) => {
           linkedinUrl.searchParams.append('location_filter', `"${location}"`)
         }
 
-        // Use description_filter for keywords
+        // Use description_filter for keywords SEPARATELY
         if (keywords) {
           linkedinUrl.searchParams.append('description_filter', keywords)
         }
