@@ -88,6 +88,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         query: "product manager",
         keywords: "ai",
         location: "united states",
+        remote: true, // Default to remote jobs
         page: 1,
         num_pages: 1
       });
@@ -129,8 +130,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     }
   };
 
-  const handleSearch = async (searchTerm: string, location: string, keywords: string) => {
-    console.log("Searching for:", { searchTerm, location, keywords });
+  const handleSearch = async (searchTerm: string, location: string, keywords: string, remote: boolean) => {
+    console.log("Searching for:", { searchTerm, location, keywords, remote });
     setIsLoading(true);
     setCurrentPage(1);
     setLastSearchParams({ searchTerm, location, keywords });
@@ -141,6 +142,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         query: searchTerm || undefined,
         location: location || undefined,
         keywords: keywords || undefined,
+        remote,
         page: 1,
         num_pages: 1
       });
@@ -200,6 +202,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         query: lastSearchParams.searchTerm || undefined,
         location: lastSearchParams.location || undefined,
         keywords: lastSearchParams.keywords || undefined,
+        remote: lastSearchParams.remote,
         page: nextPage,
         num_pages: 1
       });

@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query = '', location = '', keywords = '', page = 1, num_pages = 1 } = await req.json()
+    const { query = '', location = '', keywords = '', remote = true, page = 1, num_pages = 1 } = await req.json()
 
     // Get the RAPIDAPI_KEY from Supabase secrets
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY')
@@ -53,7 +53,11 @@ serve(async (req) => {
       jsearchUrl.searchParams.append('num_pages', num_pages.toString())
       jsearchUrl.searchParams.append('country', 'us')
       jsearchUrl.searchParams.append('date_posted', '3days') // Only recent jobs
-      jsearchUrl.searchParams.append('work_from_home', 'true') // Include remote jobs
+      
+      // Add work_from_home parameter based on remote filter
+      if (remote) {
+        jsearchUrl.searchParams.append('work_from_home', 'true')
+      }
 
       console.log('Searching JSearch with query:', searchQuery)
       
@@ -117,7 +121,7 @@ serve(async (req) => {
       JSON.stringify({
         status: 'OK',
         request_id: `jsearch_${Date.now()}`,
-        parameters: { query, location, keywords, page },
+        parameters: { query, location, keywords, remote, page },
         data: allJobs,
         num_pages: 1
       }),

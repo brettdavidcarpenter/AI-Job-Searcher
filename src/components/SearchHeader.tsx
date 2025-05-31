@@ -4,9 +4,10 @@ import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 
 interface SearchHeaderProps {
-  onSearch: (searchTerm: string, location: string, keywords: string) => void;
+  onSearch: (searchTerm: string, location: string, keywords: string, remote: boolean) => void;
   initialKeywords?: string;
 }
 
@@ -14,6 +15,7 @@ export const SearchHeader = ({ onSearch, initialKeywords = "" }: SearchHeaderPro
   const [searchTerm, setSearchTerm] = useState("");
   const [location, setLocation] = useState("");
   const [keywords, setKeywords] = useState(initialKeywords);
+  const [remote, setRemote] = useState(true); // Default to true
 
   // Update keywords when initialKeywords prop changes
   useEffect(() => {
@@ -22,14 +24,15 @@ export const SearchHeader = ({ onSearch, initialKeywords = "" }: SearchHeaderPro
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(searchTerm, location, keywords);
+    onSearch(searchTerm, location, keywords, remote);
   };
 
   const handleClear = () => {
     setSearchTerm("");
     setLocation("");
     setKeywords("");
-    onSearch("", "", "");
+    setRemote(true); // Reset to default true
+    onSearch("", "", "", true);
   };
 
   return (
@@ -78,6 +81,17 @@ export const SearchHeader = ({ onSearch, initialKeywords = "" }: SearchHeaderPro
                 className="h-12"
               />
             </div>
+          </div>
+          
+          <div className="flex items-center space-x-3 pt-2">
+            <Switch
+              id="remote-toggle"
+              checked={remote}
+              onCheckedChange={setRemote}
+            />
+            <label htmlFor="remote-toggle" className="text-sm font-medium text-gray-700">
+              Remote work only
+            </label>
           </div>
           
           <div className="flex gap-3 pt-2">

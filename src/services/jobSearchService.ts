@@ -1,9 +1,11 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface JobSearchParams {
   query?: string;
   location?: string;
   keywords?: string;
+  remote?: boolean;
   page?: number;
   num_pages?: number;
 }
