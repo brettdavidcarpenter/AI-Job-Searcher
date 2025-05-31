@@ -114,17 +114,23 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
         source: 'all'
       });
       
+      console.log("Initial search response:", response);
+      
       if (response.status === 'OK' && response.data) {
         let convertedJobs = response.data.map(convertJSearchJobToJob);
+        console.log("Converted jobs:", convertedJobs);
         
         // Filter jobs to only include those posted in the last 4 weeks
         convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
+        console.log("Filtered jobs (last 4 weeks):", convertedJobs);
         
         // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
           isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
         }));
+        
+        console.log("Final jobs with saved status:", jobsWithSavedStatus);
         
         setJobs(jobsWithSavedStatus);
         setTotalJobs(convertedJobs.length);
@@ -133,8 +139,10 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
         // Auto-select first job if available
         if (jobsWithSavedStatus.length > 0) {
           setSelectedJob(jobsWithSavedStatus[0]);
+          console.log("Selected first job:", jobsWithSavedStatus[0]);
         }
       } else {
+        console.log("No jobs found in response");
         setJobs([]);
         setSelectedJob(null);
       }
@@ -357,6 +365,9 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
     await supabase.auth.signOut();
   };
 
+  console.log("Current jobs state:", jobs);
+  console.log("Is loading:", isLoading);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -400,7 +411,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
           </TabsList>
 
           <TabsContent value="search" className="space-y-6">
-            <SearchHeader onSearch={handleSearch} />
+            <SearchHeader onSearch={handleSearch} initialKeywords="ai" />
             
             {isLoading && jobs.length === 0 && (
               <div className="flex items-center justify-center py-12">

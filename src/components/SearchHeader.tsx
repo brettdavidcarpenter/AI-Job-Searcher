@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface SearchHeaderProps {
   onSearch: (searchTerm: string, location: string, keywords: string, source: string) => void;
+  initialKeywords?: string;
 }
 
-export const SearchHeader = ({ onSearch }: SearchHeaderProps) => {
+export const SearchHeader = ({ onSearch, initialKeywords = "" }: SearchHeaderProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [location, setLocation] = useState("");
-  const [keywords, setKeywords] = useState("");
+  const [keywords, setKeywords] = useState(initialKeywords);
   const [source, setSource] = useState("all");
+
+  // Update keywords when initialKeywords prop changes
+  useEffect(() => {
+    setKeywords(initialKeywords);
+  }, [initialKeywords]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
