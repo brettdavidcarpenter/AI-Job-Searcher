@@ -30,6 +30,19 @@ export interface Job {
   source?: string;
 }
 
+// Helper function to check if a job was posted within the last 4 weeks
+const isJobRecentlyPosted = (postedDate: string): boolean => {
+  try {
+    const jobDate = new Date(postedDate);
+    const fourWeeksAgo = new Date();
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28); // 4 weeks = 28 days
+    return jobDate >= fourWeeksAgo;
+  } catch {
+    // If we can't parse the date, include the job to be safe
+    return true;
+  }
+};
+
 const JobSearchApp = ({ user }: { user: User | null }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -103,7 +116,10 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
       });
       
       if (response.status === 'OK' && response.data) {
-        const convertedJobs = response.data.map(convertJSearchJobToJob);
+        let convertedJobs = response.data.map(convertJSearchJobToJob);
+        
+        // Filter jobs to only include those posted in the last 4 weeks
+        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
         
         // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
@@ -150,7 +166,10 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
       });
       
       if (response.status === 'OK' && response.data) {
-        const convertedJobs = response.data.map(convertJSearchJobToJob);
+        let convertedJobs = response.data.map(convertJSearchJobToJob);
+        
+        // Filter jobs to only include those posted in the last 4 weeks
+        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
         
         // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
@@ -166,14 +185,14 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
         }
         toast({
           title: "Search completed",
-          description: `Found ${convertedJobs.length} jobs from ${source === 'all' ? 'multiple sources' : source}`,
+          description: `Found ${convertedJobs.length} recent jobs from ${source === 'all' ? 'multiple sources' : source}`,
         });
       } else {
         setJobs([]);
         setSelectedJob(null);
         setTotalJobs(0);
         toast({
-          title: "No jobs found",
+          title: "No recent jobs found",
           description: "Try adjusting your search criteria",
           variant: "destructive",
         });
@@ -210,7 +229,11 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
       });
       
       if (response.status === 'OK' && response.data) {
-        const convertedJobs = response.data.map(convertJSearchJobToJob);
+        let convertedJobs = response.data.map(convertJSearchJobToJob);
+        
+        // Filter jobs to only include those posted in the last 4 weeks
+        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
+        
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
           isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
@@ -220,7 +243,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
         setCurrentPage(nextPage);
         toast({
           title: "More jobs loaded",
-          description: `Loaded ${convertedJobs.length} more jobs`,
+          description: `Loaded ${convertedJobs.length} more recent jobs`,
         });
       }
     } catch (error) {
@@ -341,27 +364,9 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
       <div className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <div>
-                <h1 className="text-2xl font-bold text-green-600">AI Job Board</h1>
-                <p className="text-sm text-gray-600">The Go-To Job Board for AI, ML, Data Science & SDE</p>
-              </div>
-              
-              {/* Stats */}
-              <div className="hidden md:flex items-center gap-8">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white">{totalJobs}</div>
-                  <div className="text-sm text-gray-400">AI Jobs Found</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white">118,051</div>
-                  <div className="text-sm text-gray-400">Total Openings</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white">9,571</div>
-                  <div className="text-sm text-gray-400">AI Companies</div>
-                </div>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-blue-600">AI Job Board</h1>
+              <p className="text-sm text-gray-600">The Go-To Job Board for AI, ML, Data Science & SDE</p>
             </div>
             
             <div className="flex items-center gap-4">
@@ -374,7 +379,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
                   </Button>
                 </>
               ) : (
-                <Button onClick={() => setShowAuthModal(true)} className="bg-green-600 hover:bg-green-700">
+                <Button onClick={() => setShowAuthModal(true)} className="bg-blue-600 hover:bg-blue-700">
                   Sign In
                 </Button>
               )}
@@ -396,11 +401,11 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
           </TabsList>
 
           <TabsContent value="search" className="space-y-6">
-            <SearchHeader onSearch={handleSearch} initialSearchTerm="AI product manager" />
+            <SearchHeader onSearch={handleSearch} />
             
             {isLoading && jobs.length === 0 && (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                 <span className="ml-2 text-lg text-gray-600">Loading AI jobs...</span>
               </div>
             )}
@@ -410,10 +415,10 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
                 {/* Results header */}
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    {totalJobs}+ AI jobs found
+                    {totalJobs}+ recent AI jobs found
                   </h2>
                   <div className="text-sm text-gray-500">
-                    Updated just now
+                    Updated just now • Last 4 weeks
                   </div>
                 </div>
                 
@@ -463,7 +468,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
 
             {!isLoading && jobs.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-xl text-gray-500">No AI jobs found matching your criteria.</p>
+                <p className="text-xl text-gray-500">No recent AI jobs found matching your criteria.</p>
                 <p className="text-gray-400 mt-2">Try adjusting your search filters or using different keywords.</p>
               </div>
             )}
@@ -502,7 +507,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
                 setShowAuthModal(false);
                 // Trigger the main auth modal
                 window.dispatchEvent(new CustomEvent('show-auth-modal'));
-              }} className="flex-1 bg-green-600 hover:bg-green-700">
+              }} className="flex-1 bg-blue-600 hover:bg-blue-700">
                 Sign Up Free
               </Button>
             </div>
