@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { SearchHeader } from "@/components/SearchHeader";
 import { SearchResults } from "@/components/SearchResults";
@@ -15,19 +14,6 @@ import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
 
-// Helper function to check if a job was posted within the last 4 weeks
-const isJobRecentlyPosted = (postedDate: string): boolean => {
-  try {
-    const jobDate = new Date(postedDate);
-    const fourWeeksAgo = new Date();
-    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28); // 4 weeks = 28 days
-    return jobDate >= fourWeeksAgo;
-  } catch {
-    // If we can't parse the date, include the job to be safe
-    return true;
-  }
-};
-
 interface JobSearchAppProps {
   user: User | null;
 }
@@ -38,7 +24,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string, source: string} | null>(null);
+  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string} | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [totalJobs, setTotalJobs] = useState(0);
 
@@ -49,7 +35,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     }
   }, [user]);
 
-  // Load AI jobs immediately on page load
+  // Load AI product manager jobs immediately on page load
   useEffect(() => {
     handleInitialSearch();
   }, []);
@@ -93,15 +79,17 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   };
 
   const handleInitialSearch = async () => {
-    console.log("Loading initial AI jobs...");
+    console.log("Loading initial AI product manager jobs...");
     setIsLoading(true);
     
     try {
+      // Search for AI product manager jobs with default parameters
       const response = await searchJobs({
+        query: "product manager",
         keywords: "ai",
+        location: "united states",
         page: 1,
-        num_pages: 1,
-        source: 'all'
+        num_pages: 1
       });
       
       console.log("Initial search response:", response);
@@ -109,10 +97,6 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       if (response.status === 'OK' && response.data) {
         let convertedJobs = response.data.map(convertJSearchJobToJob);
         console.log("Converted jobs:", convertedJobs);
-        
-        // Filter jobs to only include those posted in the last 4 weeks
-        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
-        console.log("Filtered jobs (last 4 weeks):", convertedJobs);
         
         // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
@@ -124,7 +108,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         
         setJobs(jobsWithSavedStatus);
         setTotalJobs(convertedJobs.length);
-        setLastSearchParams({ searchTerm: "", location: "", keywords: "ai", source: "all" });
+        setLastSearchParams({ searchTerm: "product manager", location: "united states", keywords: "ai" });
         
         // Auto-select first job if available
         if (jobsWithSavedStatus.length > 0) {
@@ -145,11 +129,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     }
   };
 
-  const handleSearch = async (searchTerm: string, location: string, keywords: string, source: string = 'all') => {
-    console.log("Searching for:", { searchTerm, location, keywords, source });
+  const handleSearch = async (searchTerm: string, location: string, keywords: string) => {
+    console.log("Searching for:", { searchTerm, location, keywords });
     setIsLoading(true);
     setCurrentPage(1);
-    setLastSearchParams({ searchTerm, location, keywords, source });
+    setLastSearchParams({ searchTerm, location, keywords });
     setSelectedJob(null);
     
     try {
@@ -158,15 +142,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         location: location || undefined,
         keywords: keywords || undefined,
         page: 1,
-        num_pages: 1,
-        source: source as 'all' | 'jsearch' | 'linkedin'
+        num_pages: 1
       });
       
       if (response.status === 'OK' && response.data) {
         let convertedJobs = response.data.map(convertJSearchJobToJob);
-        
-        // Filter jobs to only include those posted in the last 4 weeks
-        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
         
         // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
@@ -182,14 +162,14 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         }
         toast({
           title: "Search completed",
-          description: `Found ${convertedJobs.length} recent jobs from ${source === 'all' ? 'multiple sources' : source}`,
+          description: `Found ${convertedJobs.length} recent jobs`,
         });
       } else {
         setJobs([]);
         setSelectedJob(null);
         setTotalJobs(0);
         toast({
-          title: "No recent jobs found",
+          title: "No jobs found",
           description: "Try adjusting your search criteria",
           variant: "destructive",
         });
@@ -221,15 +201,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         location: lastSearchParams.location || undefined,
         keywords: lastSearchParams.keywords || undefined,
         page: nextPage,
-        num_pages: 1,
-        source: lastSearchParams.source as 'all' | 'jsearch' | 'linkedin'
+        num_pages: 1
       });
       
       if (response.status === 'OK' && response.data) {
         let convertedJobs = response.data.map(convertJSearchJobToJob);
-        
-        // Filter jobs to only include those posted in the last 4 weeks
-        convertedJobs = convertedJobs.filter(job => isJobRecentlyPosted(job.postedDate));
         
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
@@ -240,7 +216,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         setCurrentPage(nextPage);
         toast({
           title: "More jobs loaded",
-          description: `Loaded ${convertedJobs.length} more recent jobs`,
+          description: `Loaded ${convertedJobs.length} more jobs`,
         });
       }
     } catch (error) {
@@ -376,7 +352,10 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         </TabsList>
 
         <TabsContent value="search" className="space-y-6">
-          <SearchHeader onSearch={handleSearch} initialKeywords="ai" />
+          <SearchHeader 
+            onSearch={handleSearch} 
+            initialKeywords="ai"
+          />
           
           <SearchResults
             jobs={jobs}

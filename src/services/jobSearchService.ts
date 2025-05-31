@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface JobSearchParams {
@@ -7,7 +6,6 @@ export interface JobSearchParams {
   keywords?: string;
   page?: number;
   num_pages?: number;
-  source?: 'all' | 'jsearch' | 'linkedin';
 }
 
 export interface JSearchJob {
