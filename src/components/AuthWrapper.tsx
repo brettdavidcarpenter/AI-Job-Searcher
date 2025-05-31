@@ -176,7 +176,7 @@ export const AuthWrapper = ({
               </div>
               
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Woman using laptop to save and organize job applications" className="w-full h-64 object-cover" />
+                <img alt="Woman using laptop to save and organize job applications" className="w-full h-64 object-cover" src="/lovable-uploads/7432c607-640f-4875-b716-61ab88db0960.png" />
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2">2. Save & Rate Your Favorite Jobs</h3>
                   <p className="text-gray-600">
