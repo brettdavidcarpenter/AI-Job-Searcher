@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      job_match_scores: {
+        Row: {
+          breakdown: Json | null
+          calculated_at: string
+          education_score: number | null
+          experience_score: number | null
+          id: string
+          job_id: string
+          overall_score: number
+          requirements_score: number | null
+          resume_id: string
+          skills_score: number | null
+          user_id: string
+        }
+        Insert: {
+          breakdown?: Json | null
+          calculated_at?: string
+          education_score?: number | null
+          experience_score?: number | null
+          id?: string
+          job_id: string
+          overall_score: number
+          requirements_score?: number | null
+          resume_id: string
+          skills_score?: number | null
+          user_id: string
+        }
+        Update: {
+          breakdown?: Json | null
+          calculated_at?: string
+          education_score?: number | null
+          experience_score?: number | null
+          id?: string
+          job_id?: string
+          overall_score?: number
+          requirements_score?: number | null
+          resume_id?: string
+          skills_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_match_scores_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "user_resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_jobs: {
         Row: {
           apply_link: string | null
@@ -63,6 +113,7 @@ export type Database = {
       user_resumes: {
         Row: {
           content_type: string | null
+          extracted_text: string | null
           file_name: string
           file_path: string
           file_size: number | null
@@ -73,6 +124,7 @@ export type Database = {
         }
         Insert: {
           content_type?: string | null
+          extracted_text?: string | null
           file_name: string
           file_path: string
           file_size?: number | null
@@ -83,6 +135,7 @@ export type Database = {
         }
         Update: {
           content_type?: string | null
+          extracted_text?: string | null
           file_name?: string
           file_path?: string
           file_size?: number | null

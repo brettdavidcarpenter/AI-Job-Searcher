@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { extractTextFromFile } from "./resumeTextExtractor";
 
 export interface Resume {
   id: string;
@@ -10,6 +11,7 @@ export interface Resume {
   content_type: string | null;
   uploaded_at: string;
   is_active: boolean | null;
+  extracted_text: string | null;
 }
 
 export const uploadResume = async (file: File): Promise<Resume> => {
@@ -17,6 +19,15 @@ export const uploadResume = async (file: File): Promise<Resume> => {
   
   if (!user) {
     throw new Error('User must be authenticated to upload resumes');
+  }
+
+  // Extract text from the file
+  let extractedText = '';
+  try {
+    extractedText = await extractTextFromFile(file);
+  } catch (error) {
+    console.error('Text extraction failed:', error);
+    // Continue with upload even if text extraction fails
   }
 
   const fileExt = file.name.split('.').pop();
@@ -32,7 +43,7 @@ export const uploadResume = async (file: File): Promise<Resume> => {
     throw uploadError;
   }
 
-  // Save resume metadata to database
+  // Save resume metadata to database including extracted text
   const { data, error } = await supabase
     .from('user_resumes')
     .insert({
@@ -41,6 +52,7 @@ export const uploadResume = async (file: File): Promise<Resume> => {
       file_path: uploadData.path,
       file_size: file.size,
       content_type: file.type,
+      extracted_text: extractedText || null,
     })
     .select()
     .single();
