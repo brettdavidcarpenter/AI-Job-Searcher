@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { SearchHeader } from "@/components/SearchHeader";
@@ -109,7 +108,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
     
     try {
       const response = await searchJobs({
-        query: "AI product manager",
+        keywords: "ai",
         page: 1,
         num_pages: 1,
         source: 'all'
@@ -129,7 +128,7 @@ const JobSearchApp = ({ user }: { user: User | null }) => {
         
         setJobs(jobsWithSavedStatus);
         setTotalJobs(convertedJobs.length);
-        setLastSearchParams({ searchTerm: "AI product manager", location: "", keywords: "", source: "all" });
+        setLastSearchParams({ searchTerm: "", location: "", keywords: "ai", source: "all" });
         
         // Auto-select first job if available
         if (jobsWithSavedStatus.length > 0) {
