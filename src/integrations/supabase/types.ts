@@ -60,6 +60,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_resumes: {
+        Row: {
+          content_type: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          is_active: boolean | null
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

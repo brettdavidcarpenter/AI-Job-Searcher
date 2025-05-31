@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
+import { ResumeUpload } from "@/components/ResumeUpload";
+import { FileText } from "lucide-react";
 
 interface JobSearchAppProps {
   user: User | null;
@@ -351,13 +353,17 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       onShowAuth={() => setShowAuthModal(true)}
     >
       <Tabs defaultValue="search" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
           <TabsTrigger value="search" className="text-lg py-3">
             <Briefcase className="h-4 w-4 mr-2" />
             AI Jobs
           </TabsTrigger>
           <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
             Saved Jobs {user ? `(${savedJobs.length})` : '(Login Required)'}
+          </TabsTrigger>
+          <TabsTrigger value="resume" className="text-lg py-3">
+            <FileText className="h-4 w-4 mr-2" />
+            Resume
           </TabsTrigger>
         </TabsList>
 
@@ -394,6 +400,10 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
               </Button>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="resume">
+          <ResumeUpload user={user} />
         </TabsContent>
       </Tabs>
       
