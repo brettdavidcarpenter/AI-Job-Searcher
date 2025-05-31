@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,114 +8,113 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle, Search, Star, Bookmark } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-
 interface AuthWrapperProps {
   children: (user: User) => React.ReactNode;
 }
-
-export const AuthWrapper = ({ children }: AuthWrapperProps) => {
+export const AuthWrapper = ({
+  children
+}: AuthWrapperProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({
+      data: {
+        session
+      }
+    }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-
     return () => subscription.unsubscribe();
   }, []);
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
-
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const {
+        error
+      } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
-
       if (error) {
         toast({
           title: "Sign in failed",
           description: error.message,
-          variant: "destructive",
+          variant: "destructive"
         });
       } else {
         toast({
           title: "Welcome back!",
-          description: "You have been signed in successfully.",
+          description: "You have been signed in successfully."
         });
       }
     } catch (error) {
       toast({
         title: "An error occurred",
         description: "Please try again later.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setAuthLoading(false);
     }
   };
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
-
     try {
-      const { error } = await supabase.auth.signUp({
+      const {
+        error
+      } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin,
-        },
+          emailRedirectTo: window.location.origin
+        }
       });
-
       if (error) {
         toast({
           title: "Sign up failed",
           description: error.message,
-          variant: "destructive",
+          variant: "destructive"
         });
       } else {
         toast({
           title: "Account created!",
-          description: "Please check your email to confirm your account.",
+          description: "Please check your email to confirm your account."
         });
       }
     } catch (error) {
       toast({
         title: "An error occurred",
         description: "Please try again later.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setAuthLoading(false);
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
         <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    );
+      </div>;
   }
-
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
         {/* Hero Section */}
         <div className="container mx-auto px-4 py-12">
           <div className="text-center mb-12">
@@ -168,11 +166,7 @@ export const AuthWrapper = ({ children }: AuthWrapperProps) => {
             <h2 className="text-3xl font-bold text-center mb-8">See How It Works</h2>
             <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                  alt="Job search interface showing search results"
-                  className="w-full h-64 object-cover"
-                />
+                <img alt="Job search interface showing search results" className="w-full h-64 object-cover" src="/lovable-uploads/e5ee35b2-3b48-4f5a-8e26-d288d86fe06a.png" />
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2">1. Search Jobs Across Multiple Platforms</h3>
                   <p className="text-gray-600">
@@ -182,11 +176,7 @@ export const AuthWrapper = ({ children }: AuthWrapperProps) => {
               </div>
               
               <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                  alt="Woman using laptop to save and organize job applications"
-                  className="w-full h-64 object-cover"
-                />
+                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Woman using laptop to save and organize job applications" className="w-full h-64 object-cover" />
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2">2. Save & Rate Your Favorite Jobs</h3>
                   <p className="text-gray-600">
@@ -261,26 +251,11 @@ export const AuthWrapper = ({ children }: AuthWrapperProps) => {
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="signup-email">Email</Label>
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                        />
+                        <Input id="signup-email" type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signup-password">Password</Label>
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          placeholder="Create a password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                          minLength={6}
-                        />
+                        <Input id="signup-password" type="password" placeholder="Create a password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
                       </div>
                       <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={authLoading}>
                         {authLoading ? "Creating account..." : "Start Your Job Search"}
@@ -295,25 +270,11 @@ export const AuthWrapper = ({ children }: AuthWrapperProps) => {
                     <form onSubmit={handleSignIn} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="signin-email">Email</Label>
-                        <Input
-                          id="signin-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                        />
+                        <Input id="signin-email" type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} required />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="signin-password">Password</Label>
-                        <Input
-                          id="signin-password"
-                          type="password"
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                        />
+                        <Input id="signin-password" type="password" placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required />
                       </div>
                       <Button type="submit" className="w-full" disabled={authLoading}>
                         {authLoading ? "Signing in..." : "Sign In"}
@@ -325,9 +286,7 @@ export const AuthWrapper = ({ children }: AuthWrapperProps) => {
             </Card>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   return <>{children(user)}</>;
 };
