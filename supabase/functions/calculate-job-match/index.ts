@@ -75,7 +75,15 @@ Description: ${jobDescription}`
     }
 
     const openAIData = await openAIResponse.json()
-    const content = openAIData.choices[0].message.content
+    let content = openAIData.choices[0].message.content
+
+    // Clean up the content - remove markdown code blocks if present
+    content = content.trim()
+    if (content.startsWith('```json')) {
+      content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+    } else if (content.startsWith('```')) {
+      content = content.replace(/^```\s*/, '').replace(/\s*```$/, '')
+    }
 
     // Parse the JSON response
     let matchScore
