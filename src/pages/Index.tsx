@@ -29,7 +29,7 @@ export interface Job {
   source?: string;
 }
 
-const JobSearchApp = ({ user }: { user: User }) => {
+const JobSearchApp = ({ user }: { user: User | null }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,13 +37,28 @@ const JobSearchApp = ({ user }: { user: User }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string, source: string} | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Load saved jobs on component mount
+  // Load saved jobs on component mount (only if user is authenticated)
   useEffect(() => {
-    loadSavedJobs();
+    if (user) {
+      loadSavedJobs();
+    }
+  }, [user]);
+
+  // Listen for auth modal trigger
+  useEffect(() => {
+    const handleShowAuthModal = () => {
+      setShowAuthModal(true);
+    };
+
+    window.addEventListener('show-auth-modal', handleShowAuthModal);
+    return () => window.removeEventListener('show-auth-modal', handleShowAuthModal);
   }, []);
 
   const loadSavedJobs = async () => {
+    if (!user) return;
+    
     try {
       const savedJobsData = await getSavedJobs();
       setSavedJobs(savedJobsData);
@@ -74,7 +89,7 @@ const JobSearchApp = ({ user }: { user: User }) => {
     setIsLoading(true);
     setCurrentPage(1);
     setLastSearchParams({ searchTerm, location, keywords, source });
-    setSelectedJob(null); // Clear selected job on new search
+    setSelectedJob(null);
     
     try {
       const response = await searchJobs({
@@ -89,10 +104,10 @@ const JobSearchApp = ({ user }: { user: User }) => {
       if (response.status === 'OK' && response.data) {
         const convertedJobs = response.data.map(convertJSearchJobToJob);
         
-        // Check which jobs are already saved
+        // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
-          isSaved: savedJobs.some(savedJob => savedJob.id === job.id)
+          isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
         }));
         
         setJobs(jobsWithSavedStatus);
@@ -148,7 +163,7 @@ const JobSearchApp = ({ user }: { user: User }) => {
         const convertedJobs = response.data.map(convertJSearchJobToJob);
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
-          isSaved: savedJobs.some(savedJob => savedJob.id === job.id)
+          isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
         }));
         
         setJobs(prev => [...prev, ...jobsWithSavedStatus]);
@@ -171,6 +186,11 @@ const JobSearchApp = ({ user }: { user: User }) => {
   };
 
   const handleSaveJob = async (job: Job) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
     console.log("Saving job:", job.title);
     
     try {
@@ -201,6 +221,8 @@ const JobSearchApp = ({ user }: { user: User }) => {
   };
 
   const handleUnsaveJob = async (jobId: string) => {
+    if (!user) return;
+    
     const job = savedJobs.find(j => j.id === jobId);
     console.log("Unsaving job:", jobId);
     
@@ -233,6 +255,8 @@ const JobSearchApp = ({ user }: { user: User }) => {
   };
 
   const handleRateJob = async (jobId: string, rating: number) => {
+    if (!user) return;
+    
     console.log("Rating job:", jobId, "with", rating, "stars");
     
     try {
@@ -269,20 +293,27 @@ const JobSearchApp = ({ user }: { user: User }) => {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Job Search Tool</h1>
             <p className="text-lg text-gray-600">Find your perfect job from LinkedIn and JSearch listings</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">Welcome, {user.email}</span>
-            <Button variant="outline" onClick={handleSignOut} size="sm">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+          {user && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">Welcome, {user.email}</span>
+              <Button variant="outline" onClick={handleSignOut} size="sm">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          )}
+          {!user && (
+            <Button onClick={() => setShowAuthModal(true)} className="bg-blue-600 hover:bg-blue-700">
+              Sign In / Sign Up
             </Button>
-          </div>
+          )}
         </div>
 
         <Tabs defaultValue="search" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="search" className="text-lg py-3">Search Jobs</TabsTrigger>
-            <TabsTrigger value="saved" className="text-lg py-3">
-              Saved Jobs ({savedJobs.length})
+            <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
+              Saved Jobs {user ? `(${savedJobs.length})` : '(Login Required)'}
             </TabsTrigger>
           </TabsList>
 
@@ -310,7 +341,7 @@ const JobSearchApp = ({ user }: { user: User }) => {
                       />
                     ))}
                     
-                    {/* Load More Button - Moved here */}
+                    {/* Load More Button */}
                     <div className="pt-4">
                       <Button 
                         onClick={loadMoreJobs}
@@ -358,14 +389,45 @@ const JobSearchApp = ({ user }: { user: User }) => {
           </TabsContent>
 
           <TabsContent value="saved">
-            <SavedJobs
-              savedJobs={savedJobs}
-              onUnsave={handleUnsaveJob}
-              onRate={handleRateJob}
-            />
+            {user ? (
+              <SavedJobs
+                savedJobs={savedJobs}
+                onUnsave={handleUnsaveJob}
+                onRate={handleRateJob}
+              />
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-xl text-gray-500">Please sign in to view your saved jobs</p>
+                <Button onClick={() => setShowAuthModal(true)} className="mt-4">
+                  Sign In / Sign Up
+                </Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Save Your Favorite Jobs</h2>
+            <p className="text-gray-600 mb-6">Create a free account to save jobs and track your applications</p>
+            <div className="flex gap-3">
+              <Button onClick={() => setShowAuthModal(false)} variant="outline" className="flex-1">
+                Continue Browsing
+              </Button>
+              <Button onClick={() => {
+                setShowAuthModal(false);
+                // Trigger the main auth modal
+                window.dispatchEvent(new CustomEvent('show-auth-modal'));
+              }} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                Sign Up Free
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
