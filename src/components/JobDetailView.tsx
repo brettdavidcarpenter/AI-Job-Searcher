@@ -6,18 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Bookmark, BookmarkCheck, MapPin, DollarSign, Calendar, Building2 } from "lucide-react";
 import { JobMatchCalculator } from "./JobMatchCalculator";
-import { useAuthContext } from "./AuthWrapper";
 import type { Job } from "@/pages/Index";
+import type { User } from "@supabase/supabase-js";
 
 interface JobDetailViewProps {
   job: Job | null;
   onSave: (job: Job) => void;
   onUnsave: (jobId: string) => void;
+  user?: User | null;
 }
 
-export const JobDetailView = ({ job, onSave, onUnsave }: JobDetailViewProps) => {
-  const { user } = useAuthContext();
-
+export const JobDetailView = ({ job, onSave, onUnsave, user }: JobDetailViewProps) => {
   if (!job) {
     return (
       <Card className="h-full flex items-center justify-center">

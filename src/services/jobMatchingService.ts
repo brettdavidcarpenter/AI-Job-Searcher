@@ -15,6 +15,18 @@ export interface MatchScore {
   };
 }
 
+const parseBreakdown = (breakdown: any): { strengths: string[]; gaps: string[]; recommendations: string[]; } => {
+  if (!breakdown || typeof breakdown !== 'object') {
+    return { strengths: [], gaps: [], recommendations: [] };
+  }
+  
+  return {
+    strengths: Array.isArray(breakdown.strengths) ? breakdown.strengths : [],
+    gaps: Array.isArray(breakdown.gaps) ? breakdown.gaps : [],
+    recommendations: Array.isArray(breakdown.recommendations) ? breakdown.recommendations : []
+  };
+};
+
 export const calculateJobMatch = async (job: Job, resumeId: string): Promise<MatchScore> => {
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -50,7 +62,7 @@ export const calculateJobMatch = async (job: Job, resumeId: string): Promise<Mat
       experience_score: existingScore.experience_score || undefined,
       education_score: existingScore.education_score || undefined,
       requirements_score: existingScore.requirements_score || undefined,
-      breakdown: existingScore.breakdown || { strengths: [], gaps: [], recommendations: [] }
+      breakdown: parseBreakdown(existingScore.breakdown)
     };
   }
 
@@ -115,6 +127,6 @@ export const getJobMatchScore = async (jobId: string, resumeId: string): Promise
     experience_score: data.experience_score || undefined,
     education_score: data.education_score || undefined,
     requirements_score: data.requirements_score || undefined,
-    breakdown: data.breakdown || { strengths: [], gaps: [], recommendations: [] }
+    breakdown: parseBreakdown(data.breakdown)
   };
 };
