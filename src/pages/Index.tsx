@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { SearchHeader } from "@/components/SearchHeader";
-import { JobCard } from "@/components/JobCard";
+import { JobListItem } from "@/components/JobListItem";
+import { JobDetailView } from "@/components/JobDetailView";
 import { SavedJobs } from "@/components/SavedJobs";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +31,7 @@ export interface Job {
 
 const JobSearchApp = ({ user }: { user: User }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,14 +74,13 @@ const JobSearchApp = ({ user }: { user: User }) => {
     setIsLoading(true);
     setCurrentPage(1);
     setLastSearchParams({ searchTerm, location, keywords, source });
+    setSelectedJob(null); // Clear selected job on new search
     
     try {
-      // Combine search term and keywords
-      const query = [searchTerm, keywords].filter(Boolean).join(' ');
-      
       const response = await searchJobs({
-        query: query || undefined,
+        query: searchTerm || undefined,
         location: location || undefined,
+        keywords: keywords || undefined,
         page: 1,
         num_pages: 1,
         source: source as 'all' | 'jsearch' | 'linkedin'
@@ -95,12 +97,17 @@ const JobSearchApp = ({ user }: { user: User }) => {
         
         setJobs(jobsWithSavedStatus);
         setHasSearched(true);
+        // Auto-select first job if available
+        if (jobsWithSavedStatus.length > 0) {
+          setSelectedJob(jobsWithSavedStatus[0]);
+        }
         toast({
           title: "Search completed",
           description: `Found ${convertedJobs.length} jobs from ${source === 'all' ? 'multiple sources' : source}`,
         });
       } else {
         setJobs([]);
+        setSelectedJob(null);
         toast({
           title: "No jobs found",
           description: "Try adjusting your search criteria",
@@ -110,6 +117,7 @@ const JobSearchApp = ({ user }: { user: User }) => {
     } catch (error) {
       console.error('Search error:', error);
       setJobs([]);
+      setSelectedJob(null);
       toast({
         title: "Search failed",
         description: "There was an error searching for jobs. Please try again.",
@@ -127,11 +135,10 @@ const JobSearchApp = ({ user }: { user: User }) => {
     const nextPage = currentPage + 1;
     
     try {
-      const query = [lastSearchParams.searchTerm, lastSearchParams.keywords].filter(Boolean).join(' ');
-      
       const response = await searchJobs({
-        query: query || undefined,
+        query: lastSearchParams.searchTerm || undefined,
         location: lastSearchParams.location || undefined,
+        keywords: lastSearchParams.keywords || undefined,
         page: nextPage,
         num_pages: 1,
         source: lastSearchParams.source as 'all' | 'jsearch' | 'linkedin'
@@ -174,6 +181,11 @@ const JobSearchApp = ({ user }: { user: User }) => {
       setSavedJobs(prev => [...prev, jobWithSaved]);
       setJobs(jobs.map(j => j.id === job.id ? { ...j, isSaved: true } : j));
       
+      // Update selected job if it's the same
+      if (selectedJob?.id === job.id) {
+        setSelectedJob({ ...selectedJob, isSaved: true });
+      }
+      
       toast({
         title: "Job saved",
         description: `${job.title} has been saved to your list`,
@@ -198,6 +210,11 @@ const JobSearchApp = ({ user }: { user: User }) => {
       // Update local state
       setSavedJobs(savedJobs.filter(job => job.id !== jobId));
       setJobs(jobs.map(j => j.id === jobId ? { ...j, isSaved: false } : j));
+      
+      // Update selected job if it's the same
+      if (selectedJob?.id === jobId) {
+        setSelectedJob({ ...selectedJob, isSaved: false });
+      }
       
       if (job) {
         toast({
@@ -280,36 +297,48 @@ const JobSearchApp = ({ user }: { user: User }) => {
             )}
             
             {jobs.length > 0 && (
-              <>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {jobs.map((job) => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      onSave={handleSaveJob}
-                      onUnsave={handleUnsaveJob}
-                    />
-                  ))}
+              <div className="grid grid-cols-12 gap-6 h-[800px]">
+                {/* Job List - Left Side */}
+                <div className="col-span-5 flex flex-col">
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                    {jobs.map((job) => (
+                      <JobListItem
+                        key={job.id}
+                        job={job}
+                        isSelected={selectedJob?.id === job.id}
+                        onClick={() => setSelectedJob(job)}
+                      />
+                    ))}
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t">
+                    <Button 
+                      onClick={loadMoreJobs}
+                      disabled={isLoading}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Loading more jobs...
+                        </>
+                      ) : (
+                        'Load More Jobs'
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 
-                <div className="flex justify-center mt-8">
-                  <Button 
-                    onClick={loadMoreJobs}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="px-8 py-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Loading more jobs...
-                      </>
-                    ) : (
-                      'Load More Jobs'
-                    )}
-                  </Button>
+                {/* Job Detail - Right Side */}
+                <div className="col-span-7">
+                  <JobDetailView
+                    job={selectedJob}
+                    onSave={handleSaveJob}
+                    onUnsave={handleUnsaveJob}
+                  />
                 </div>
-              </>
+              </div>
             )}
 
             {hasSearched && jobs.length === 0 && !isLoading && (
