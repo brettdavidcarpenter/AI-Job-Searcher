@@ -14,6 +14,9 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase backend
+- Jsearch API
+- OpenAi 40-mini API
 
 ## UI
 
