@@ -25,7 +25,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -35,10 +35,25 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         
         if (error) throw error;
         
-        toast({
-          title: "Account created!",
-          description: "Please check your email to verify your account.",
-        });
+        // Check if the user was created and logged in immediately
+        if (data.user && data.session) {
+          toast({
+            title: "Account created!",
+            description: "Welcome! You're now signed in.",
+          });
+          onClose();
+          setEmail("");
+          setPassword("");
+        } else if (data.user && !data.session) {
+          // User was created but needs email confirmation
+          toast({
+            title: "Account created!",
+            description: "Please check your email to verify your account.",
+          });
+          onClose();
+          setEmail("");
+          setPassword("");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -51,11 +66,10 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
+        onClose();
+        setEmail("");
+        setPassword("");
       }
-      
-      onClose();
-      setEmail("");
-      setPassword("");
     } catch (error: any) {
       toast({
         title: "Authentication failed",
