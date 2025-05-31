@@ -18,13 +18,20 @@ interface JobSearchAppProps {
   user: User | null;
 }
 
+interface LastSearchParams {
+  searchTerm: string;
+  location: string;
+  keywords: string;
+  remote: boolean;
+}
+
 export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastSearchParams, setLastSearchParams] = useState<{searchTerm: string, location: string, keywords: string} | null>(null);
+  const [lastSearchParams, setLastSearchParams] = useState<LastSearchParams | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [totalJobs, setTotalJobs] = useState(0);
 
@@ -109,7 +116,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         
         setJobs(jobsWithSavedStatus);
         setTotalJobs(convertedJobs.length);
-        setLastSearchParams({ searchTerm: "product manager", location: "united states", keywords: "ai" });
+        setLastSearchParams({ searchTerm: "product manager", location: "united states", keywords: "ai", remote: true });
         
         // Auto-select first job if available
         if (jobsWithSavedStatus.length > 0) {
@@ -134,7 +141,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     console.log("Searching for:", { searchTerm, location, keywords, remote });
     setIsLoading(true);
     setCurrentPage(1);
-    setLastSearchParams({ searchTerm, location, keywords });
+    setLastSearchParams({ searchTerm, location, keywords, remote });
     setSelectedJob(null);
     
     try {
