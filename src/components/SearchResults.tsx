@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { SearchStats } from "@/components/SearchStats";
 import type { Job } from "@/pages/Index";
+import type { User } from "@supabase/supabase-js";
 
 interface SearchResultsProps {
   jobs: Job[];
@@ -16,6 +17,7 @@ interface SearchResultsProps {
   onSaveJob: (job: Job) => void;
   onUnsaveJob: (jobId: string) => void;
   onLoadMore: () => void;
+  user?: User | null;
 }
 
 export const SearchResults = ({
@@ -26,7 +28,8 @@ export const SearchResults = ({
   onJobSelect,
   onSaveJob,
   onUnsaveJob,
-  onLoadMore
+  onLoadMore,
+  user
 }: SearchResultsProps) => {
   if (isLoading && jobs.length === 0) {
     return (
@@ -88,6 +91,7 @@ export const SearchResults = ({
             job={selectedJob}
             onSave={onSaveJob}
             onUnsave={onUnsaveJob}
+            user={user}
           />
         </div>
       </div>

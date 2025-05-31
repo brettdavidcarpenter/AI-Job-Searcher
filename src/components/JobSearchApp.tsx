@@ -382,6 +382,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             onSaveJob={handleSaveJob}
             onUnsaveJob={handleUnsaveJob}
             onLoadMore={loadMoreJobs}
+            user={user}
           />
         </TabsContent>
 
