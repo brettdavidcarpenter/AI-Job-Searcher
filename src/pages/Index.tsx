@@ -309,24 +309,25 @@ const JobSearchApp = ({ user }: { user: User }) => {
                         onClick={() => setSelectedJob(job)}
                       />
                     ))}
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t">
-                    <Button 
-                      onClick={loadMoreJobs}
-                      disabled={isLoading}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Loading more jobs...
-                        </>
-                      ) : (
-                        'Load More Jobs'
-                      )}
-                    </Button>
+                    
+                    {/* Load More Button - Moved here */}
+                    <div className="pt-4">
+                      <Button 
+                        onClick={loadMoreJobs}
+                        disabled={isLoading}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Loading more jobs...
+                          </>
+                        ) : (
+                          'Load More Jobs'
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 
