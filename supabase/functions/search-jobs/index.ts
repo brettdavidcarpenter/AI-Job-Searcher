@@ -38,6 +38,17 @@ serve(async (req) => {
         jsearchUrl.searchParams.append('num_pages', '1')
 
         console.log('Searching JSearch with query:', searchQuery)
+        
+        // Log the complete payload being sent to JSearch
+        console.log('JSearch API payload:', {
+          url: jsearchUrl.toString(),
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': '***HIDDEN***',
+            'X-RapidAPI-Host': 'jsearch.p.rapidapi.com'
+          },
+          searchParams: Object.fromEntries(jsearchUrl.searchParams)
+        })
 
         const jsearchResponse = await fetch(jsearchUrl.toString(), {
           method: 'GET',
@@ -50,6 +61,21 @@ serve(async (req) => {
         if (jsearchResponse.ok) {
           const jsearchData = await jsearchResponse.json()
           console.log('JSearch response status:', jsearchData.status)
+          
+          // Log the complete response from JSearch
+          console.log('JSearch API response:', {
+            status: jsearchData.status,
+            request_id: jsearchData.request_id,
+            parameters: jsearchData.parameters,
+            data_count: jsearchData.data ? jsearchData.data.length : 0,
+            num_pages: jsearchData.num_pages,
+            first_job_sample: jsearchData.data && jsearchData.data.length > 0 ? {
+              job_id: jsearchData.data[0].job_id,
+              job_title: jsearchData.data[0].job_title,
+              employer_name: jsearchData.data[0].employer_name,
+              job_posted_at_datetime_utc: jsearchData.data[0].job_posted_at_datetime_utc
+            } : null
+          })
           
           if (jsearchData.status === 'OK' && jsearchData.data) {
             // Add source identifier to each job
