@@ -17,5 +17,6 @@ This project is built with:
 
 ## UI
 
-<img width="1915" alt="job-search-ui" src="https://github.com/user-attachments/assets/5ad87ca7-437c-4cc7-af64-4d6630e9f676" />
-<img width="1918" alt="saved-jobs-ui" src="https://github.com/user-attachments/assets/127af506-4c9a-4f74-9540-311ab85e129d" />
+<img width="1466" alt="Screenshot 2025-05-31 at 1 42 46 PM" src="https://github.com/user-attachments/assets/0fc220ca-b246-45f7-b49c-2916ad1188c4" />
+<img width="1470" alt="Screenshot 2025-05-31 at 1 42 20 PM" src="https://github.com/user-attachments/assets/17303e48-cdad-4fd7-a869-b1477b20945c" />
+<img width="1469" alt="Screenshot 2025-05-31 at 1 42 03 PM" src="https://github.com/user-attachments/assets/78223096-03ae-4852-949f-252b2475a63e" />
