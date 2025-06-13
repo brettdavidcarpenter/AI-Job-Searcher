@@ -33,9 +33,21 @@ export interface JSearchResponse {
   parameters: any;
   data: JSearchJob[];
   num_pages: number;
+  source?: string;
+  cached?: boolean;
+  cached_at?: string;
+  fallback_reason?: string;
+  message?: string;
 }
 
-export const searchJobs = async (params: JobSearchParams): Promise<JSearchResponse> => {
+export interface SearchResult {
+  response: JSearchResponse;
+  isFromCache: boolean;
+  isFallback: boolean;
+  errorMessage?: string;
+}
+
+export const searchJobs = async (params: JobSearchParams): Promise<SearchResult> => {
   try {
     const { data, error } = await supabase.functions.invoke('search-jobs', {
       body: params
@@ -43,10 +55,17 @@ export const searchJobs = async (params: JobSearchParams): Promise<JSearchRespon
 
     if (error) {
       console.error('Error calling search-jobs function:', error);
-      throw new Error('Failed to search jobs');
+      throw new Error('Failed to search jobs: ' + error.message);
     }
 
-    return data;
+    const response = data as JSearchResponse;
+    
+    return {
+      response,
+      isFromCache: Boolean(response.cached),
+      isFallback: response.source === 'fallback',
+      errorMessage: response.message
+    };
   } catch (error) {
     console.error('Error in searchJobs:', error);
     throw error;

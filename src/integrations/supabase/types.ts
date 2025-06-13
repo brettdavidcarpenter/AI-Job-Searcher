@@ -9,6 +9,57 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cached_job_searches: {
+        Row: {
+          cached_at: string
+          expires_at: string
+          id: string
+          results: Json
+          search_params: Json
+          search_params_hash: string
+        }
+        Insert: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          results: Json
+          search_params: Json
+          search_params_hash: string
+        }
+        Update: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          results?: Json
+          search_params?: Json
+          search_params_hash?: string
+        }
+        Relationships: []
+      }
+      fallback_jobs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          job_data: Json
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          job_data: Json
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          job_data?: Json
+          source?: string
+        }
+        Relationships: []
+      }
       job_match_scores: {
         Row: {
           breakdown: Json | null

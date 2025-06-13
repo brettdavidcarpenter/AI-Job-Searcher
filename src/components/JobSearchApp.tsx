@@ -36,6 +36,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [lastSearchParams, setLastSearchParams] = useState<LastSearchParams | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [totalJobs, setTotalJobs] = useState(0);
+  
+  // New state for handling API status
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   // Load saved jobs on component mount (only if user is authenticated)
   useEffect(() => {
@@ -92,23 +97,26 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     setIsLoading(true);
     
     try {
-      // Search for AI product manager jobs with default parameters
-      const response = await searchJobs({
+      const result = await searchJobs({
         query: "product manager",
         keywords: "ai",
         location: "united states",
-        remote: true, // Default to remote jobs
+        remote: true,
         page: 1,
         num_pages: 1
       });
       
-      console.log("Initial search response:", response);
+      console.log("Initial search result:", result);
       
-      if (response.status === 'OK' && response.data) {
-        let convertedJobs = response.data.map(convertJSearchJobToJob);
+      // Update status information
+      setIsFromCache(result.isFromCache);
+      setIsFallback(result.isFallback);
+      setErrorMessage(result.errorMessage);
+      
+      if (result.response.status === 'OK' && result.response.data) {
+        let convertedJobs = result.response.data.map(convertJSearchJobToJob);
         console.log("Converted jobs:", convertedJobs);
         
-        // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
           isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
@@ -120,7 +128,6 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         setTotalJobs(convertedJobs.length);
         setLastSearchParams({ searchTerm: "product manager", location: "united states", keywords: "ai", remote: true });
         
-        // Auto-select first job if available
         if (jobsWithSavedStatus.length > 0) {
           setSelectedJob(jobsWithSavedStatus[0]);
           console.log("Selected first job:", jobsWithSavedStatus[0]);
@@ -134,6 +141,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       console.error('Initial search error:', error);
       setJobs([]);
       setSelectedJob(null);
+      setErrorMessage("Failed to load jobs. Please try refreshing the page.");
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +155,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     setSelectedJob(null);
     
     try {
-      const response = await searchJobs({
+      const result = await searchJobs({
         query: searchTerm || undefined,
         location: location || undefined,
         keywords: keywords || undefined,
@@ -156,10 +164,14 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         num_pages: 1
       });
       
-      if (response.status === 'OK' && response.data) {
-        let convertedJobs = response.data.map(convertJSearchJobToJob);
+      // Update status information
+      setIsFromCache(result.isFromCache);
+      setIsFallback(result.isFallback);
+      setErrorMessage(result.errorMessage);
+      
+      if (result.response.status === 'OK' && result.response.data) {
+        let convertedJobs = result.response.data.map(convertJSearchJobToJob);
         
-        // Check which jobs are already saved (only if user is authenticated)
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
           isSaved: user ? savedJobs.some(savedJob => savedJob.id === job.id) : false
@@ -167,13 +179,16 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         
         setJobs(jobsWithSavedStatus);
         setTotalJobs(convertedJobs.length);
-        // Auto-select first job if available
+        
         if (jobsWithSavedStatus.length > 0) {
           setSelectedJob(jobsWithSavedStatus[0]);
         }
+        
         toast({
-          title: "Search completed",
-          description: `Found ${convertedJobs.length} recent jobs`,
+          title: result.isFallback ? "Showing curated jobs" : "Search completed",
+          description: result.isFallback 
+            ? "Live search temporarily unavailable" 
+            : `Found ${convertedJobs.length} recent jobs`,
         });
       } else {
         setJobs([]);
@@ -190,6 +205,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       setJobs([]);
       setSelectedJob(null);
       setTotalJobs(0);
+      setErrorMessage("Search failed. Please try again.");
       toast({
         title: "Search failed",
         description: "There was an error searching for jobs. Please try again.",
@@ -201,13 +217,13 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   };
 
   const loadMoreJobs = async () => {
-    if (!lastSearchParams || isLoading) return;
+    if (!lastSearchParams || isLoading || isFallback) return;
     
     setIsLoading(true);
     const nextPage = currentPage + 1;
     
     try {
-      const response = await searchJobs({
+      const result = await searchJobs({
         query: lastSearchParams.searchTerm || undefined,
         location: lastSearchParams.location || undefined,
         keywords: lastSearchParams.keywords || undefined,
@@ -216,8 +232,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         num_pages: 1
       });
       
-      if (response.status === 'OK' && response.data) {
-        let convertedJobs = response.data.map(convertJSearchJobToJob);
+      if (result.response.status === 'OK' && result.response.data) {
+        let convertedJobs = result.response.data.map(convertJSearchJobToJob);
         
         const jobsWithSavedStatus = convertedJobs.map(job => ({
           ...job,
@@ -383,6 +399,9 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             onUnsaveJob={handleUnsaveJob}
             onLoadMore={loadMoreJobs}
             user={user}
+            isFromCache={isFromCache}
+            isFallback={isFallback}
+            errorMessage={errorMessage}
           />
         </TabsContent>
 
