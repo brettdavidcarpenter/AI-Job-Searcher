@@ -37,9 +37,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [totalJobs, setTotalJobs] = useState(0);
   
-  // New state for handling API status
+  // Enhanced state for handling API status
   const [isFromCache, setIsFromCache] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
+  const [fallbackLevel, setFallbackLevel] = useState<string>('unknown');
+  const [cacheAgeHours, setCacheAgeHours] = useState<number | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
   // Load saved jobs on component mount (only if user is authenticated)
@@ -92,6 +94,14 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     };
   };
 
+  const updateSearchStatus = (result: any) => {
+    setIsFromCache(result.isFromCache);
+    setIsFallback(result.isFallback);
+    setFallbackLevel(result.fallbackLevel);
+    setCacheAgeHours(result.cacheAgeHours);
+    setErrorMessage(result.errorMessage);
+  };
+
   const handleInitialSearch = async () => {
     console.log("Loading initial AI product manager jobs...");
     setIsLoading(true);
@@ -109,9 +119,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       console.log("Initial search result:", result);
       
       // Update status information
-      setIsFromCache(result.isFromCache);
-      setIsFallback(result.isFallback);
-      setErrorMessage(result.errorMessage);
+      updateSearchStatus(result);
       
       if (result.response.status === 'OK' && result.response.data) {
         let convertedJobs = result.response.data.map(convertJSearchJobToJob);
@@ -165,9 +173,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       });
       
       // Update status information
-      setIsFromCache(result.isFromCache);
-      setIsFallback(result.isFallback);
-      setErrorMessage(result.errorMessage);
+      updateSearchStatus(result);
       
       if (result.response.status === 'OK' && result.response.data) {
         let convertedJobs = result.response.data.map(convertJSearchJobToJob);
@@ -184,11 +190,33 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
           setSelectedJob(jobsWithSavedStatus[0]);
         }
         
+        // Enhanced toast messages based on fallback level
+        let toastTitle = "Search completed";
+        let toastDescription = `Found ${convertedJobs.length} recent jobs`;
+        
+        if (result.isFallback) {
+          switch (result.fallbackLevel) {
+            case 'expired_cache':
+              toastTitle = "Showing cached results";
+              toastDescription = `Found ${convertedJobs.length} jobs from ${result.cacheAgeHours} hours ago`;
+              break;
+            case 'recent_global':
+              toastTitle = "Showing recent jobs";
+              toastDescription = `Found ${convertedJobs.length} recent AI jobs`;
+              break;
+            case 'static':
+              toastTitle = "Showing curated jobs";
+              toastDescription = "Live search temporarily unavailable";
+              break;
+          }
+        } else if (result.isFromCache) {
+          toastTitle = "Showing cached results";
+          toastDescription = `Found ${convertedJobs.length} cached jobs`;
+        }
+        
         toast({
-          title: result.isFallback ? "Showing curated jobs" : "Search completed",
-          description: result.isFallback 
-            ? "Live search temporarily unavailable" 
-            : `Found ${convertedJobs.length} recent jobs`,
+          title: toastTitle,
+          description: toastDescription,
         });
       } else {
         setJobs([]);
@@ -217,7 +245,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   };
 
   const loadMoreJobs = async () => {
-    if (!lastSearchParams || isLoading || isFallback) return;
+    if (!lastSearchParams || isLoading || fallbackLevel === 'static') return;
     
     setIsLoading(true);
     const nextPage = currentPage + 1;
@@ -401,6 +429,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             user={user}
             isFromCache={isFromCache}
             isFallback={isFallback}
+            fallbackLevel={fallbackLevel}
+            cacheAgeHours={cacheAgeHours}
             errorMessage={errorMessage}
           />
         </TabsContent>

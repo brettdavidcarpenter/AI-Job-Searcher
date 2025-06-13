@@ -3,7 +3,7 @@ import { useState } from "react";
 import { JobListItem } from "@/components/JobListItem";
 import { JobDetailView } from "@/components/JobDetailView";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, Database, Wifi } from "lucide-react";
+import { Loader2, AlertCircle, Database, Wifi, Clock, RefreshCw } from "lucide-react";
 import { SearchStats } from "@/components/SearchStats";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Job } from "@/pages/Index";
@@ -21,6 +21,8 @@ interface SearchResultsProps {
   user?: User | null;
   isFromCache?: boolean;
   isFallback?: boolean;
+  fallbackLevel?: string;
+  cacheAgeHours?: number;
   errorMessage?: string;
 }
 
@@ -36,8 +38,77 @@ export const SearchResults = ({
   user,
   isFromCache = false,
   isFallback = false,
+  fallbackLevel = 'unknown',
+  cacheAgeHours,
   errorMessage
 }: SearchResultsProps) => {
+  // Helper function to get alert info based on priority
+  const getAlertInfo = () => {
+    // Priority 1: Fallback scenarios
+    if (isFallback) {
+      switch (fallbackLevel) {
+        case 'expired_cache':
+          return {
+            icon: Clock,
+            variant: 'default' as const,
+            color: 'blue',
+            title: `Showing cached results from ${cacheAgeHours || 'several'} hours ago`,
+            message: errorMessage || 'Live search temporarily unavailable.'
+          };
+        case 'recent_global':
+          return {
+            icon: Database,
+            variant: 'default' as const,
+            color: 'amber',
+            title: `Showing recent AI jobs from ${cacheAgeHours || 'several'} hours ago`,
+            message: errorMessage || 'Displaying the most recent available results.'
+          };
+        case 'static':
+          return {
+            icon: Wifi,
+            variant: 'default' as const,
+            color: 'orange',
+            title: 'Showing curated AI jobs',
+            message: errorMessage || 'Live search temporarily unavailable.'
+          };
+        default:
+          return {
+            icon: AlertCircle,
+            variant: 'default' as const,
+            color: 'red',
+            title: 'Using backup results',
+            message: errorMessage || 'Search service temporarily unavailable.'
+          };
+      }
+    }
+
+    // Priority 2: Cache scenarios (when not fallback)
+    if (isFromCache && fallbackLevel === 'cache') {
+      return {
+        icon: Database,
+        variant: 'default' as const,
+        color: 'blue',
+        title: 'Showing cached results',
+        message: 'Results are refreshed every 6 hours for faster loading.'
+      };
+    }
+
+    // Priority 3: Other errors
+    if (errorMessage && !isFallback && !isFromCache) {
+      return {
+        icon: AlertCircle,
+        variant: 'destructive' as const,
+        color: 'red',
+        title: 'Search issue',
+        message: errorMessage
+      };
+    }
+
+    return null;
+  };
+
+  const alertInfo = getAlertInfo();
+
   if (isLoading && jobs.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -58,30 +129,13 @@ export const SearchResults = ({
 
   return (
     <>
-      {/* Status alerts */}
-      {errorMessage && (
-        <Alert className="mb-4 border-amber-200 bg-amber-50">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
-            {errorMessage}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isFromCache && !isFallback && (
-        <Alert className="mb-4 border-blue-200 bg-blue-50">
-          <Database className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            Showing cached results to ensure fast loading. Results are refreshed every 6 hours.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isFallback && (
-        <Alert className="mb-4 border-orange-200 bg-orange-50">
-          <Wifi className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            {errorMessage || "Showing curated AI jobs. Live search will resume shortly."}
+      {/* Single consolidated alert */}
+      {alertInfo && (
+        <Alert className={`mb-4 border-${alertInfo.color}-200 bg-${alertInfo.color}-50`}>
+          <alertInfo.icon className={`h-4 w-4 text-${alertInfo.color}-600`} />
+          <AlertDescription className={`text-${alertInfo.color}-800`}>
+            <div className="font-medium">{alertInfo.title}</div>
+            <div className="text-sm mt-1">{alertInfo.message}</div>
           </AlertDescription>
         </Alert>
       )}
@@ -101,8 +155,8 @@ export const SearchResults = ({
               />
             ))}
             
-            {/* Load More Button - hide for fallback results */}
-            {!isFallback && (
+            {/* Load More Button - hide for static fallback results */}
+            {fallbackLevel !== 'static' && (
               <Button 
                 onClick={onLoadMore}
                 disabled={isLoading}

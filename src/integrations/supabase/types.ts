@@ -14,25 +14,31 @@ export type Database = {
           cached_at: string
           expires_at: string
           id: string
+          result_count: number | null
           results: Json
           search_params: Json
           search_params_hash: string
+          search_source: string | null
         }
         Insert: {
           cached_at?: string
           expires_at?: string
           id?: string
+          result_count?: number | null
           results: Json
           search_params: Json
           search_params_hash: string
+          search_source?: string | null
         }
         Update: {
           cached_at?: string
           expires_at?: string
           id?: string
+          result_count?: number | null
           results?: Json
           search_params?: Json
           search_params_hash?: string
+          search_source?: string | null
         }
         Relationships: []
       }
@@ -109,6 +115,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      last_successful_search: {
+        Row: {
+          cached_at: string
+          id: string
+          result_count: number
+          search_params: Json
+          search_results: Json
+        }
+        Insert: {
+          cached_at?: string
+          id?: string
+          result_count?: number
+          search_params: Json
+          search_results: Json
+        }
+        Update: {
+          cached_at?: string
+          id?: string
+          result_count?: number
+          search_params?: Json
+          search_results?: Json
+        }
+        Relationships: []
       }
       saved_jobs: {
         Row: {
@@ -202,7 +232,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_last_successful_search: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

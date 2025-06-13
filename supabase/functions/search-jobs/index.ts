@@ -56,7 +56,8 @@ serve(async (req) => {
         JSON.stringify({
           ...cachedResult.results,
           cached: true,
-          cached_at: cachedResult.cached_at
+          cached_at: cachedResult.cached_at,
+          fallback_level: 'cache'
         }),
         { 
           headers: { 
@@ -71,7 +72,7 @@ serve(async (req) => {
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY')
     if (!rapidApiKey) {
       console.error('RAPIDAPI_KEY not found in environment variables')
-      return await handleApiFallback(supabase, searchParams)
+      return await handleApiFallback(supabase, searchParams, 'api_key_missing')
     }
 
     let allJobs = []
@@ -156,7 +157,25 @@ serve(async (req) => {
       parameters: searchParams,
       data: allJobs,
       num_pages: 1,
-      source: 'jsearch'
+      source: 'jsearch',
+      fallback_level: 'live'
+    }
+
+    // Store as last successful search (fire and forget)
+    try {
+      await supabase
+        .from('last_successful_search')
+        .insert({
+          search_results: response,
+          search_params: searchParams,
+          result_count: allJobs.length
+        })
+      
+      // Cleanup old entries
+      await supabase.rpc('cleanup_last_successful_search')
+      console.log('Stored as last successful search')
+    } catch (error) {
+      console.error('Failed to store last successful search:', error)
     }
 
     // Cache the successful result (fire and forget)
@@ -167,6 +186,8 @@ serve(async (req) => {
           search_params_hash: searchHash,
           search_params: searchParams,
           results: response,
+          result_count: allJobs.length,
+          search_source: 'api',
           expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() // 6 hours from now
         })
       console.log('Results cached successfully')
@@ -191,7 +212,7 @@ serve(async (req) => {
       JSON.stringify({ 
         error: 'Internal server error',
         status: 'error',
-        fallback: true
+        fallback_level: 'error'
       }),
       { 
         status: 500,
@@ -204,12 +225,74 @@ serve(async (req) => {
   }
 })
 
-// Handle API fallback scenarios
+// Handle API fallback scenarios with hierarchical strategy
 async function handleApiFallback(supabase: any, searchParams: any, reason: string = 'unknown') {
   console.log(`Using fallback due to: ${reason}`)
   
   try {
-    // Get fallback jobs from database
+    // Strategy 1: Try to get expired cache for this specific search
+    const searchHash = createSearchHash(searchParams)
+    const { data: expiredCache } = await supabase
+      .from('cached_job_searches')
+      .select('*')
+      .eq('search_params_hash', searchHash)
+      .order('cached_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (expiredCache && expiredCache.results?.data?.length > 0) {
+      console.log('Using expired cache for specific search')
+      const cacheAge = Math.floor((new Date().getTime() - new Date(expiredCache.cached_at).getTime()) / (1000 * 60 * 60))
+      
+      return new Response(
+        JSON.stringify({
+          ...expiredCache.results,
+          cached: true,
+          cached_at: expiredCache.cached_at,
+          fallback_level: 'expired_cache',
+          cache_age_hours: cacheAge,
+          message: `Showing cached results from ${cacheAge} hours ago due to ${getFriendlyErrorMessage(reason)}.`
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
+
+    // Strategy 2: Get most recent successful search globally
+    const { data: recentSearch } = await supabase
+      .from('last_successful_search')
+      .select('*')
+      .order('cached_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (recentSearch && recentSearch.search_results?.data?.length > 0) {
+      console.log('Using most recent successful search')
+      const cacheAge = Math.floor((new Date().getTime() - new Date(recentSearch.cached_at).getTime()) / (1000 * 60 * 60))
+      
+      return new Response(
+        JSON.stringify({
+          ...recentSearch.search_results,
+          cached: true,
+          cached_at: recentSearch.cached_at,
+          fallback_level: 'recent_global',
+          cache_age_hours: cacheAge,
+          message: `Showing recent AI jobs from ${cacheAge} hours ago due to ${getFriendlyErrorMessage(reason)}.`
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
+
+    // Strategy 3: Use static fallback jobs as last resort
     const { data: fallbackJobs, error: fallbackError } = await supabase
       .from('fallback_jobs')
       .select('job_data')
@@ -229,10 +312,9 @@ async function handleApiFallback(supabase: any, searchParams: any, reason: strin
       data: jobs,
       num_pages: 1,
       source: 'fallback',
+      fallback_level: 'static',
       fallback_reason: reason,
-      message: reason === 'rate_limit' 
-        ? 'API rate limit reached. Showing curated AI jobs instead.' 
-        : 'API temporarily unavailable. Showing curated AI jobs instead.'
+      message: `${getFriendlyErrorMessage(reason)} Showing curated AI jobs instead.`
     }
 
     return new Response(
@@ -250,7 +332,7 @@ async function handleApiFallback(supabase: any, searchParams: any, reason: strin
       JSON.stringify({ 
         error: 'Service temporarily unavailable',
         status: 'error',
-        fallback: true
+        fallback_level: 'error'
       }),
       { 
         status: 503,
@@ -260,5 +342,19 @@ async function handleApiFallback(supabase: any, searchParams: any, reason: strin
         } 
       }
     )
+  }
+}
+
+// Helper function to get user-friendly error messages
+function getFriendlyErrorMessage(reason: string): string {
+  switch (reason) {
+    case 'rate_limit':
+      return 'API rate limit reached.'
+    case 'api_error':
+      return 'Job search service temporarily unavailable.'
+    case 'api_key_missing':
+      return 'Search service configuration issue.'
+    default:
+      return 'Search service temporarily unavailable.'
   }
 }

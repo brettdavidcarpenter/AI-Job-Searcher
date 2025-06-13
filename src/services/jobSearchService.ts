@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface JobSearchParams {
@@ -37,6 +36,8 @@ export interface JSearchResponse {
   cached?: boolean;
   cached_at?: string;
   fallback_reason?: string;
+  fallback_level?: 'live' | 'cache' | 'expired_cache' | 'recent_global' | 'static' | 'error';
+  cache_age_hours?: number;
   message?: string;
 }
 
@@ -44,6 +45,8 @@ export interface SearchResult {
   response: JSearchResponse;
   isFromCache: boolean;
   isFallback: boolean;
+  fallbackLevel: string;
+  cacheAgeHours?: number;
   errorMessage?: string;
 }
 
@@ -60,10 +63,16 @@ export const searchJobs = async (params: JobSearchParams): Promise<SearchResult>
 
     const response = data as JSearchResponse;
     
+    // Determine fallback status based on fallback_level
+    const isFallback = response.fallback_level && !['live', 'cache'].includes(response.fallback_level);
+    const isFromCache = Boolean(response.cached) || response.fallback_level === 'cache';
+    
     return {
       response,
-      isFromCache: Boolean(response.cached),
-      isFallback: response.source === 'fallback',
+      isFromCache,
+      isFallback,
+      fallbackLevel: response.fallback_level || 'unknown',
+      cacheAgeHours: response.cache_age_hours,
       errorMessage: response.message
     };
   } catch (error) {
