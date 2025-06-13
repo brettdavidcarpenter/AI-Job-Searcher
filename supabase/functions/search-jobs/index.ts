@@ -7,6 +7,58 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Static fallback jobs as last resort
+const STATIC_FALLBACK_JOBS = [
+  {
+    job_id: "fallback_1",
+    job_title: "Senior AI Product Manager",
+    employer_name: "TechCorp",
+    job_city: "San Francisco",
+    job_state: "CA",
+    job_country: "US",
+    job_description: "Lead AI product development initiatives and drive innovation in machine learning applications. Work with cross-functional teams to deliver cutting-edge AI solutions.",
+    job_employment_type: "Full-time",
+    job_posted_at_datetime_utc: "2024-12-01T08:00:00Z",
+    job_salary_currency: "USD",
+    job_min_salary: 150000,
+    job_max_salary: 200000,
+    job_apply_link: "https://example.com/apply",
+    source: "fallback"
+  },
+  {
+    job_id: "fallback_2",
+    job_title: "AI/ML Product Manager",
+    employer_name: "Innovation Labs",
+    job_city: "New York",
+    job_state: "NY", 
+    job_country: "US",
+    job_description: "Drive product strategy for AI-powered applications. Collaborate with engineering and data science teams to build scalable ML products.",
+    job_employment_type: "Full-time",
+    job_posted_at_datetime_utc: "2024-12-02T10:00:00Z",
+    job_salary_currency: "USD",
+    job_min_salary: 140000,
+    job_max_salary: 180000,
+    job_apply_link: "https://example.com/apply",
+    source: "fallback"
+  },
+  {
+    job_id: "fallback_3",
+    job_title: "Product Manager - Artificial Intelligence",
+    employer_name: "AI Startup",
+    job_city: "Austin",
+    job_state: "TX",
+    job_country: "US", 
+    job_description: "Own the product roadmap for AI features and capabilities. Partner with stakeholders to define requirements and deliver customer value through AI.",
+    job_employment_type: "Full-time",
+    job_posted_at_datetime_utc: "2024-12-03T14:00:00Z",
+    job_salary_currency: "USD",
+    job_min_salary: 130000,
+    job_max_salary: 170000,
+    job_apply_link: "https://example.com/apply",
+    source: "fallback"
+  }
+];
+
 // Helper function to create a hash of search parameters
 function createSearchHash(params: any): string {
   const normalized = {
@@ -293,23 +345,11 @@ async function handleApiFallback(supabase: any, searchParams: any, reason: strin
     }
 
     // Strategy 3: Use static fallback jobs as last resort
-    const { data: fallbackJobs, error: fallbackError } = await supabase
-      .from('fallback_jobs')
-      .select('job_data')
-      .eq('is_active', true)
-      .limit(10)
-
-    if (fallbackError) {
-      console.error('Error fetching fallback jobs:', fallbackError)
-    }
-
-    const jobs = fallbackJobs?.map(item => item.job_data) || []
-
     const response = {
       status: 'OK',
       request_id: `fallback_${Date.now()}`,
       parameters: searchParams,
-      data: jobs,
+      data: STATIC_FALLBACK_JOBS,
       num_pages: 1,
       source: 'fallback',
       fallback_level: 'static',

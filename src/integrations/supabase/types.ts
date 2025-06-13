@@ -42,30 +42,6 @@ export type Database = {
         }
         Relationships: []
       }
-      fallback_jobs: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          job_data: Json
-          source: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          job_data: Json
-          source?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          job_data?: Json
-          source?: string
-        }
-        Relationships: []
-      }
       job_match_scores: {
         Row: {
           breakdown: Json | null
