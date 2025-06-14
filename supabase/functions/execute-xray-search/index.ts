@@ -42,7 +42,7 @@ const convertPipesToOR = (query: string): string => {
     parts.push(currentPart.trim());
   }
   
-  // Join parts with " OR "
+  // Join parts with " OR " - quotes will be preserved as-is without escaping
   return parts.join(' OR ');
 }
 
