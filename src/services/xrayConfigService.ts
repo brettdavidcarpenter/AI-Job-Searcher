@@ -37,7 +37,7 @@ export const createXrayConfig = async (config: Omit<XrayConfig, 'id' | 'user_id'
     throw error;
   }
 
-  return data;
+  return data as XrayConfig;
 };
 
 export const getXrayConfigs = async (): Promise<XrayConfig[]> => {
@@ -58,7 +58,7 @@ export const getXrayConfigs = async (): Promise<XrayConfig[]> => {
     throw error;
   }
 
-  return data || [];
+  return (data || []) as XrayConfig[];
 };
 
 export const updateXrayConfig = async (id: string, updates: Partial<XrayConfig>) => {
@@ -81,7 +81,7 @@ export const updateXrayConfig = async (id: string, updates: Partial<XrayConfig>)
     throw error;
   }
 
-  return data;
+  return data as XrayConfig;
 };
 
 export const deleteXrayConfig = async (id: string) => {
