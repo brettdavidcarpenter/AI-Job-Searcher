@@ -36,22 +36,74 @@ serve(async (req) => {
       )
     }
 
-    // Use SerpApi directly for Google job searches
+    console.log('Original X-ray query:', query)
+
+    // Convert X-ray query to Google Jobs compatible format
+    let processedQuery = query
+
+    // Extract job title from quotes
+    const titleMatch = processedQuery.match(/"([^"]+)"/g)
+    let jobTitle = ''
+    if (titleMatch) {
+      jobTitle = titleMatch[titleMatch.length - 1].replace(/"/g, '') // Get last quoted term
+      console.log('Extracted job title:', jobTitle)
+    }
+
+    // Extract keywords (ai, ml, data science, etc.)
+    const keywordMatches = processedQuery.match(/\((data|ml|"machine learning"|ai|"artificial intelligence")[^)]*\)/gi)
+    let keywords = ''
+    if (keywordMatches) {
+      keywords = keywordMatches[0]
+        .replace(/[()]/g, '')
+        .replace(/OR/gi, ' ')
+        .replace(/"/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+      console.log('Extracted keywords:', keywords)
+    }
+
+    // Check for remote work indicators
+    const isRemote = /remote|"work from home"|work-from-home|telecommute/i.test(processedQuery)
+    console.log('Remote work detected:', isRemote)
+
+    // Build a simplified query for Google Jobs
+    let simpleQuery = ''
+    if (jobTitle) {
+      simpleQuery = jobTitle
+    }
+    if (keywords) {
+      simpleQuery += (simpleQuery ? ' ' : '') + keywords
+    }
+    
+    // If we couldn't extract anything meaningful, use original query but simplified
+    if (!simpleQuery) {
+      simpleQuery = processedQuery
+        .replace(/site:[^\s)]+/gi, '') // Remove site operators
+        .replace(/\([^)]*\)/g, ' ') // Remove parentheses groups
+        .replace(/OR/gi, ' ')
+        .replace(/"/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    console.log('Processed query for SerpApi:', simpleQuery)
+
     const serpApiUrl = 'https://serpapi.com/search.json'
-    
-    // Remove automatic date filtering from query - let SerpApi handle it
-    const cleanQuery = query.replace(/after:\d{4}-\d{2}-\d{2}/, '').trim()
-    
     const params = new URLSearchParams({
       engine: 'google_jobs',
-      q: cleanQuery,
+      q: simpleQuery,
       api_key: serpApiKey,
-      chips: 'date_posted:today', // Use SerpApi's date filtering
-      num: '10' // Limit results
+      chips: 'date_posted:today',
+      num: '20' // Increase results
     })
 
-    console.log('Calling SerpApi with query:', cleanQuery)
-    console.log('Full URL:', `${serpApiUrl}?${params}`)
+    // Add location if remote work is detected
+    if (isRemote) {
+      params.append('location', 'United States')
+      params.append('remote_jobs_only', 'true')
+    }
+
+    console.log('SerpApi URL:', `${serpApiUrl}?${params}`)
 
     const response = await fetch(`${serpApiUrl}?${params}`, {
       method: 'GET',
@@ -82,9 +134,16 @@ serve(async (req) => {
     console.log('SerpApi response keys:', Object.keys(data))
     console.log('Jobs results count:', data.jobs_results?.length || 0)
     
+    // Log search metadata
+    if (data.search_information) {
+      console.log('Search information:', data.search_information)
+    }
+    
     // Log first job for debugging
     if (data.jobs_results && data.jobs_results.length > 0) {
       console.log('First job sample:', JSON.stringify(data.jobs_results[0], null, 2))
+    } else if (data.error) {
+      console.log('SerpApi returned error:', data.error)
     }
     
     return new Response(
