@@ -211,6 +211,14 @@ export const useJobSearch = (user: User | null, savedJobs: Job[]) => {
     setJobs(jobs.map(j => j.id === jobId ? { ...j, isSaved } : j));
   };
 
+  // Function to directly set jobs (used for X-ray results)
+  const setJobsDirectly = (newJobs: Job[]) => {
+    const jobsWithSavedStatus = updateJobsWithSavedStatus(newJobs);
+    setJobs(jobsWithSavedStatus);
+    setTotalJobs(newJobs.length);
+    setLastSearchParams(null); // Clear search params since these are X-ray results
+  };
+
   return {
     jobs,
     isLoading,
@@ -219,6 +227,7 @@ export const useJobSearch = (user: User | null, savedJobs: Job[]) => {
     handleInitialSearch,
     handleSearch,
     loadMoreJobs,
-    updateJobSavedStatus
+    updateJobSavedStatus,
+    setJobs: setJobsDirectly
   };
 };

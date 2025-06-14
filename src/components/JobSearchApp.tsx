@@ -6,9 +6,10 @@ import { SavedJobs } from "@/components/SavedJobs";
 import { JobSearchLayout } from "@/components/JobSearchLayout";
 import { AuthModal } from "@/components/AuthModal";
 import { ResumeUpload } from "@/components/ResumeUpload";
+import { XrayMonitor } from "@/components/XrayMonitor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Briefcase, FileText } from "lucide-react";
+import { Briefcase, FileText, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useJobSearch } from "@/hooks/useJobSearch";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
@@ -22,6 +23,7 @@ interface JobSearchAppProps {
 export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("search");
   
   const { savedJobs, handleSaveJob, handleUnsaveJob, handleRateJob } = useSavedJobs(user);
   const { 
@@ -32,7 +34,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     handleInitialSearch, 
     handleSearch, 
     loadMoreJobs, 
-    updateJobSavedStatus 
+    updateJobSavedStatus,
+    setJobs 
   } = useJobSearch(user, savedJobs);
 
   // Load AI product manager jobs immediately on page load
@@ -84,6 +87,13 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     }
   };
 
+  const handleXrayJobsFound = (xrayJobs: Job[]) => {
+    // Switch to search tab and display X-ray results
+    setJobs(xrayJobs);
+    setSelectedJob(xrayJobs.length > 0 ? xrayJobs[0] : null);
+    setActiveTab("search");
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -94,11 +104,15 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       onSignOut={handleSignOut}
       onShowAuth={() => setShowAuthModal(true)}
     >
-      <Tabs defaultValue="search" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="search" className="text-lg py-3">
             <Briefcase className="h-4 w-4 mr-2" />
             AI Jobs
+          </TabsTrigger>
+          <TabsTrigger value="xray" className="text-lg py-3">
+            <Search className="h-4 w-4 mr-2" />
+            X-ray Monitor
           </TabsTrigger>
           <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
             Saved Jobs {user ? `(${savedJobs.length})` : '(Login Required)'}
@@ -126,6 +140,13 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             onLoadMore={loadMoreJobs}
             user={user}
             searchStatus={searchStatus}
+          />
+        </TabsContent>
+
+        <TabsContent value="xray">
+          <XrayMonitor 
+            user={user} 
+            onJobsFound={handleXrayJobsFound}
           />
         </TabsContent>
 

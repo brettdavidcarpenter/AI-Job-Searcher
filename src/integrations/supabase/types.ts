@@ -203,6 +203,101 @@ export type Database = {
         }
         Relationships: []
       }
+      xray_search_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          query: string
+          schedule_frequency: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          query: string
+          schedule_frequency?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          query?: string
+          schedule_frequency?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      xray_search_results: {
+        Row: {
+          apply_link: string | null
+          company: string
+          config_id: string
+          description: string | null
+          found_at: string
+          id: string
+          job_id: string
+          job_title: string
+          job_type: string | null
+          location: string | null
+          posted_date: string | null
+          salary: string | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          apply_link?: string | null
+          company: string
+          config_id: string
+          description?: string | null
+          found_at?: string
+          id?: string
+          job_id: string
+          job_title: string
+          job_type?: string | null
+          location?: string | null
+          posted_date?: string | null
+          salary?: string | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          apply_link?: string | null
+          company?: string
+          config_id?: string
+          description?: string | null
+          found_at?: string
+          id?: string
+          job_id?: string
+          job_title?: string
+          job_type?: string | null
+          location?: string | null
+          posted_date?: string | null
+          salary?: string | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "xray_search_results_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "xray_search_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
