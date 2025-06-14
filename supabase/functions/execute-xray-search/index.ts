@@ -24,11 +24,11 @@ serve(async (req) => {
       )
     }
 
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY')
+    const serpApiKey = Deno.env.get('SERPAPI_KEY')
     
-    if (!rapidApiKey) {
+    if (!serpApiKey) {
       return new Response(
-        JSON.stringify({ error: 'RAPIDAPI_KEY not configured' }),
+        JSON.stringify({ error: 'SERPAPI_KEY not configured' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -36,19 +36,20 @@ serve(async (req) => {
       )
     }
 
-    // Use SerpApi through RapidAPI for Google job searches
-    const serpApiUrl = 'https://serpapi.p.rapidapi.com/search'
+    // Use SerpApi directly for Google job searches
+    const serpApiUrl = 'https://serpapi.com/search.json'
     const params = new URLSearchParams({
       engine: 'google_jobs',
       q: query,
-      api_key: rapidApiKey
+      api_key: serpApiKey
     })
+
+    console.log('Calling SerpApi directly with query:', query)
 
     const response = await fetch(`${serpApiUrl}?${params}`, {
       method: 'GET',
       headers: {
-        'X-RapidAPI-Key': rapidApiKey,
-        'X-RapidAPI-Host': 'serpapi.p.rapidapi.com'
+        'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
       }
     })
 
