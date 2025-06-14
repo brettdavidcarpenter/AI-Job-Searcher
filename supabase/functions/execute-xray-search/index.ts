@@ -38,13 +38,20 @@ serve(async (req) => {
 
     // Use SerpApi directly for Google job searches
     const serpApiUrl = 'https://serpapi.com/search.json'
+    
+    // Remove automatic date filtering from query - let SerpApi handle it
+    const cleanQuery = query.replace(/after:\d{4}-\d{2}-\d{2}/, '').trim()
+    
     const params = new URLSearchParams({
       engine: 'google_jobs',
-      q: query,
-      api_key: serpApiKey
+      q: cleanQuery,
+      api_key: serpApiKey,
+      chips: 'date_posted:today', // Use SerpApi's date filtering
+      num: '10' // Limit results
     })
 
-    console.log('Calling SerpApi directly with query:', query)
+    console.log('Calling SerpApi with query:', cleanQuery)
+    console.log('Full URL:', `${serpApiUrl}?${params}`)
 
     const response = await fetch(`${serpApiUrl}?${params}`, {
       method: 'GET',
@@ -53,13 +60,16 @@ serve(async (req) => {
       }
     })
 
+    console.log('SerpApi response status:', response.status)
+
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('SerpApi error:', errorText)
+      console.error('SerpApi error response:', errorText)
       return new Response(
         JSON.stringify({ 
           error: 'Failed to execute search',
-          details: errorText 
+          details: errorText,
+          status: response.status
         }),
         { 
           status: response.status, 
@@ -69,6 +79,13 @@ serve(async (req) => {
     }
 
     const data = await response.json()
+    console.log('SerpApi response keys:', Object.keys(data))
+    console.log('Jobs results count:', data.jobs_results?.length || 0)
+    
+    // Log first job for debugging
+    if (data.jobs_results && data.jobs_results.length > 0) {
+      console.log('First job sample:', JSON.stringify(data.jobs_results[0], null, 2))
+    }
     
     return new Response(
       JSON.stringify(data),
@@ -79,7 +96,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Edge function error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack 
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

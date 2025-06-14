@@ -29,25 +29,26 @@ export interface SerpApiResponse {
 
 export const executeXraySearch = async (query: string): Promise<SerpApiJob[]> => {
   try {
-    // Add 24-hour time constraint automatically
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateConstraint = `after:${yesterday.toISOString().split('T')[0]}`;
-    
-    // Combine user query with time constraint
-    const enhancedQuery = `${query} ${dateConstraint}`;
+    console.log('Executing X-ray search with query:', query);
     
     const { data, error } = await supabase.functions.invoke('execute-xray-search', {
-      body: { query: enhancedQuery }
+      body: { query }
     });
+
+    console.log('Supabase function response:', { data, error });
 
     if (error) {
       console.error('Error calling execute-xray-search function:', error);
       throw new Error('Failed to execute X-ray search: ' + error.message);
     }
 
-    return data?.jobs_results || [];
+    if (!data) {
+      console.warn('No data returned from X-ray search');
+      return [];
+    }
+
+    console.log('Jobs results received:', data.jobs_results?.length || 0);
+    return data.jobs_results || [];
   } catch (error) {
     console.error('Error in executeXraySearch:', error);
     throw error;
