@@ -12,10 +12,11 @@ export interface Job {
   description: string;
   type: string;
   postedDate: string;
+  applyLink?: string;
+  source: string;
+  sourceType?: 'manual' | 'xray';
   isSaved?: boolean;
   fitRating?: number;
-  applyLink?: string;
-  source?: string;
 }
 
 const Index = () => {
