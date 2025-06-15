@@ -5,10 +5,11 @@ import { ResumeUpload } from "@/components/ResumeUpload";
 import { SearchSetup } from "@/components/SearchSetup";
 import { ReviewQueue } from "@/components/ReviewQueue";
 import { SavedJobs } from "@/components/SavedJobs";
+import { JobSearchTab } from "@/components/JobSearchTab";
 import { JobSearchLayout } from "@/components/JobSearchLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Settings, Eye, Bookmark } from "lucide-react";
+import { Search, Eye, Bookmark } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
 import type { User } from "@supabase/supabase-js";
@@ -21,7 +22,8 @@ interface JobSearchAppProps {
 export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showResumeUpload, setShowResumeUpload] = useState(false);
-  const [activeTab, setActiveTab] = useState("setup");
+  const [activeTab, setActiveTab] = useState("search");
+  const [showSetupModal, setShowSetupModal] = useState(false);
   
   const { savedJobs, handleSaveJob, handleUnsaveJob, handleRateJob } = useSavedJobs(user);
 
@@ -52,6 +54,10 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     await supabase.auth.signOut();
   };
 
+  const handleSetupAutomation = () => {
+    setShowSetupModal(true);
+  };
+
   return (
     <JobSearchLayout
       user={user}
@@ -61,9 +67,9 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="setup" className="text-lg py-3">
-            <Settings className="h-4 w-4 mr-2" />
-            Search Setup
+          <TabsTrigger value="search" className="text-lg py-3">
+            <Search className="h-4 w-4 mr-2" />
+            Job Search
           </TabsTrigger>
           <TabsTrigger value="review" className="text-lg py-3">
             <Eye className="h-4 w-4 mr-2" />
@@ -75,8 +81,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-6">
-          <SearchSetup user={user} onJobsFound={handleJobsFound} />
+        <TabsContent value="search" className="space-y-6">
+          <JobSearchTab user={user} onSetupAutomation={handleSetupAutomation} />
         </TabsContent>
 
         <TabsContent value="review">
@@ -122,6 +128,26 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
                 </Button>
               </div>
               <ResumeUpload user={user} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSetupModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Set Up Automated Searches</h2>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowSetupModal(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+              <SearchSetup user={user} onJobsFound={handleJobsFound} />
             </div>
           </div>
         </div>
