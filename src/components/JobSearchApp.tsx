@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { SearchHeader } from "@/components/SearchHeader";
 import { SearchResults } from "@/components/SearchResults";
@@ -9,7 +8,7 @@ import { ResumeUpload } from "@/components/ResumeUpload";
 import { XrayMonitor } from "@/components/XrayMonitor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Search } from "lucide-react";
+import { Search, Monitor, Bookmark } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useJobSearch } from "@/hooks/useJobSearch";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
@@ -109,19 +108,25 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6">
           <TabsTrigger value="search" className="text-lg py-3">
-            <Briefcase className="h-4 w-4 mr-2" />
-            AI Jobs
+            <Search className="h-4 w-4 mr-2" />
+            Job Search
           </TabsTrigger>
           <TabsTrigger value="xray" className="text-lg py-3">
-            <Search className="h-4 w-4 mr-2" />
+            <Monitor className="h-4 w-4 mr-2" />
             X-ray Monitor
           </TabsTrigger>
           <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
-            Saved Jobs {user && savedJobs.length > 0 ? `(${savedJobs.length})` : ''}
+            <Bookmark className="h-4 w-4 mr-2" />
+            My Saved Jobs {user && savedJobs.length > 0 ? `(${savedJobs.length})` : ''}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="search" className="space-y-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Interactive Job Search</h2>
+            <p className="text-gray-600">Search for jobs in real-time and save the ones you like</p>
+          </div>
+          
           <SearchHeader 
             onSearch={onSearch} 
             initialKeywords="ai"

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,9 @@ import { Trash2, Play, Edit, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { createXrayConfig, getXrayConfigs, updateXrayConfig, deleteXrayConfig, type XrayConfig } from "@/services/xrayConfigService";
 import { executeXraySearch, convertSerpJobToJob } from "@/services/serpApiService";
+import { storeXrayResults } from "@/services/xrayResultsService";
+import { saveBdJob } from "@/services/savedJobsService";
+import { XrayResultsDisplay } from "@/components/XrayResultsDisplay";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
 
@@ -95,6 +97,10 @@ export const XrayMonitor = ({ user, onJobsFound }: XrayMonitorProps) => {
       const serpJobs = await executeXraySearch(config.query);
       const jobs = serpJobs.map(convertSerpJobToJob);
       
+      // Store results in database
+      await storeXrayResults(config.id, jobs);
+      
+      // Still show results in the search tab for immediate viewing
       onJobsFound(jobs);
       
       // Update last_run_at
@@ -103,7 +109,7 @@ export const XrayMonitor = ({ user, onJobsFound }: XrayMonitorProps) => {
       
       toast({
         title: "Search completed",
-        description: `Found ${jobs.length} jobs for "${config.name}"`,
+        description: `Found ${jobs.length} jobs for "${config.name}". Results stored and displayed in Job Search tab.`,
       });
     } catch (error) {
       console.error('Error running X-ray search:', error);
@@ -166,6 +172,32 @@ export const XrayMonitor = ({ user, onJobsFound }: XrayMonitorProps) => {
     }
   };
 
+  const handleSaveJobFromXray = async (job: Job) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to save jobs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await saveBdJob(job, 'xray');
+      toast({
+        title: "Job saved",
+        description: `${job.title} has been saved from X-ray results`,
+      });
+    } catch (error) {
+      console.error('Error saving job from X-ray:', error);
+      toast({
+        title: "Failed to save job",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user) {
     return (
       <div className="text-center py-12">
@@ -179,7 +211,7 @@ export const XrayMonitor = ({ user, onJobsFound }: XrayMonitorProps) => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">X-ray Monitor</h2>
-          <p className="text-gray-500">Create and manage automated job searches with custom queries</p>
+          <p className="text-gray-500">Set up automated job searches and review stored results</p>
         </div>
         <Button 
           onClick={() => {
@@ -304,6 +336,15 @@ export const XrayMonitor = ({ user, onJobsFound }: XrayMonitorProps) => {
                           Last run: {new Date(config.last_run_at).toLocaleDateString()}
                         </span>
                       )}
+                    </div>
+                    
+                    {/* Recent Finds Section */}
+                    <div className="mt-4">
+                      <XrayResultsDisplay
+                        configId={config.id}
+                        configName={config.name}
+                        onSaveJob={handleSaveJobFromXray}
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

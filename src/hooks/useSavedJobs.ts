@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { saveBdJob, unsaveJob, getSavedJobs, updateJobRating } from "@/services/savedJobsService";
 import { toast } from "@/hooks/use-toast";
@@ -26,7 +25,7 @@ export const useSavedJobs = (user: User | null) => {
     }
   };
 
-  const handleSaveJob = async (job: Job) => {
+  const handleSaveJob = async (job: Job, sourceType: 'manual' | 'xray' = 'manual') => {
     if (!user) {
       // Trigger auth modal
       window.dispatchEvent(new CustomEvent('show-auth-modal'));
@@ -34,8 +33,8 @@ export const useSavedJobs = (user: User | null) => {
     }
     
     try {
-      await saveBdJob(job);
-      const jobWithSaved = { ...job, isSaved: true, fitRating: 0 };
+      await saveBdJob(job, sourceType);
+      const jobWithSaved = { ...job, isSaved: true, fitRating: 0, sourceType };
       setSavedJobs(prev => [...prev, jobWithSaved]);
       
       toast({

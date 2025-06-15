@@ -131,6 +131,7 @@ export type Database = {
           posted_date: string | null
           salary: string | null
           source: string | null
+          source_type: string | null
           user_id: string
         }
         Insert: {
@@ -147,6 +148,7 @@ export type Database = {
           posted_date?: string | null
           salary?: string | null
           source?: string | null
+          source_type?: string | null
           user_id: string
         }
         Update: {
@@ -163,6 +165,7 @@ export type Database = {
           posted_date?: string | null
           salary?: string | null
           source?: string | null
+          source_type?: string | null
           user_id?: string
         }
         Relationships: []

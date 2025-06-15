@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Job } from "@/pages/Index";
 
-export const saveBdJob = async (job: Job) => {
+export const saveBdJob = async (job: Job, sourceType: 'manual' | 'xray' = 'manual') => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
@@ -23,6 +23,7 @@ export const saveBdJob = async (job: Job) => {
       posted_date: job.postedDate,
       apply_link: job.applyLink,
       source: job.source,
+      source_type: sourceType,
       fit_rating: job.fitRating || 0
     });
 
@@ -82,6 +83,7 @@ export const getSavedJobs = async (): Promise<Job[]> => {
     postedDate: savedJob.posted_date || '',
     applyLink: savedJob.apply_link,
     source: savedJob.source,
+    sourceType: savedJob.source_type || 'manual',
     isSaved: true,
     fitRating: savedJob.fit_rating || 0
   }));
