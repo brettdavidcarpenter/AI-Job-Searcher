@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Function to generate consistent job IDs
+const generateJobId = (title: string, company: string, link: string): string => {
+  const hashInput = `${title}-${company}-${link}`;
+  // Simple hash function for consistent ID generation
+  let hash = 0;
+  for (let i = 0; i < hashInput.length; i++) {
+    const char = hashInput.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return `xray-${Math.abs(hash)}`;
+};
+
 // Function to extract job-related URLs from Google search results
 const extractJobUrls = (organicResults: any[]): any[] => {
   if (!organicResults) return [];
@@ -40,22 +53,36 @@ const extractJobUrls = (organicResults: any[]): any[] => {
   return organicResults.filter(result => {
     const link = result.link?.toLowerCase() || '';
     return jobSites.some(site => link.includes(site));
-  }).map((result, index) => ({
-    position: index + 1,
-    title: result.title || 'Job Title Not Available',
-    company_name: extractCompanyFromResult(result),
-    location: extractLocationFromResult(result),
-    via: result.displayed_link || new URL(result.link).hostname,
-    description: result.snippet || 'No description available',
-    job_highlights: {
-      Responsibilities: result.snippet ? [result.snippet] : []
-    },
-    related_links: [{
-      link: result.link,
-      text: 'Apply Now'
-    }],
-    thumbnail: result.thumbnail
-  }));
+  }).map((result, index) => {
+    const title = result.title || 'Job Title Not Available';
+    const company = extractCompanyFromResult(result);
+    const link = result.link;
+    
+    return {
+      id: generateJobId(title, company, link),
+      title: title,
+      company: company,
+      location: extractLocationFromResult(result) || 'Location not specified',
+      salary: 'Salary not specified',
+      description: result.snippet || 'No description available',
+      type: 'Full-time',
+      postedDate: 'Recently posted',
+      applyLink: link,
+      source: 'xray',
+      isSaved: false,
+      fitRating: 0,
+      position: index + 1,
+      via: result.displayed_link || new URL(link).hostname,
+      job_highlights: {
+        Responsibilities: result.snippet ? [result.snippet] : []
+      },
+      related_links: [{
+        link: link,
+        text: 'Apply Now'
+      }],
+      thumbnail: result.thumbnail
+    };
+  });
 };
 
 // Extract company name from search result
@@ -191,8 +218,9 @@ serve(async (req) => {
       console.log('❌ API connectivity test failed, aborting search');
       return new Response(
         JSON.stringify({ 
-          error: 'API connectivity test failed',
-          details: connectivityTest.error
+          error: 'API connectivity failed',
+          details: connectivityTest.error,
+          userMessage: 'Unable to connect to search API. Please check your API key configuration.'
         }),
         { 
           status: 500, 
@@ -235,6 +263,7 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({ 
               error: 'SerpAPI Error: ' + data.error,
+              userMessage: 'Search API returned an error. Please check your query format.',
               debug_info: {
                 original_query: query,
                 engine_used: 'google',
@@ -258,7 +287,7 @@ serve(async (req) => {
           });
         }
         
-        // Extract job-related results
+        // Extract job-related results and transform to Job format
         const jobResults = extractJobUrls(data.organic_results || []);
         const jobCount = jobResults.length;
         console.log('💼 Job-related results extracted:', jobCount);
@@ -266,13 +295,12 @@ serve(async (req) => {
         if (jobCount > 0) {
           console.log('🎯 Job results sample:');
           jobResults.slice(0, 3).forEach((job, index) => {
-            console.log(`  ${index + 1}. ${job.title} at ${job.company_name} - ${job.related_links[0]?.link}`);
+            console.log(`  ${index + 1}. ${job.title} at ${job.company} - ${job.applyLink}`);
           });
           
-          // Transform the data to match the expected jobs_results format
+          // Return jobs in the expected format for pending reviews
           const resultData = {
-            ...data,
-            jobs_results: jobResults,
+            jobs: jobResults, // This is the key change - return as 'jobs' not 'jobs_results'
             search_metadata: {
               ...data.search_metadata,
               engine_used: 'google_search',
@@ -292,14 +320,11 @@ serve(async (req) => {
           )
         } else {
           console.log('ℹ️ No job-related results found in organic results');
-          console.log('🔍 This could mean:');
-          console.log('   1. The X-ray query is too specific');
-          console.log('   2. No job sites match the query criteria');
-          console.log('   3. The query syntax needs adjustment');
           
           return new Response(
             JSON.stringify({ 
-              error: 'No job-related results found',
+              error: 'No job postings found',
+              userMessage: 'No job postings found for this query. Try a broader search or different job sites.',
               debug_info: {
                 original_query: query,
                 engine_used: 'google_search',
@@ -308,7 +333,7 @@ serve(async (req) => {
                   title: r.title,
                   link: r.link
                 })) || [],
-                suggestion: 'Try a broader X-ray query or check the syntax'
+                suggestion: 'Try including specific job sites like: site:linkedin.com/jobs OR site:indeed.com'
               }
             }),
             { 
@@ -324,7 +349,8 @@ serve(async (req) => {
         
         return new Response(
           JSON.stringify({ 
-            error: `SerpAPI request failed with status ${response.status}`,
+            error: `Search request failed (${response.status})`,
+            userMessage: 'Search service is temporarily unavailable. Please try again in a moment.',
             details: errorText,
             debug_info: {
               original_query: query,
@@ -344,7 +370,9 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          error: 'Network or request error: ' + error.message,
+          error: 'Network error occurred',
+          userMessage: 'Unable to reach search service. Please check your internet connection and try again.',
+          details: error.message,
           debug_info: {
             original_query: query,
             engine_used: 'google_search',
@@ -361,7 +389,8 @@ serve(async (req) => {
     console.error('💥 Edge function error:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: 'Internal server error',
+        userMessage: 'An unexpected error occurred. Please try again.',
         stack: error.stack 
       }),
       { 

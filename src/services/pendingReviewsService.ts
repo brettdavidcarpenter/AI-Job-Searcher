@@ -28,21 +28,30 @@ export const storePendingReviews = async (jobs: Job[], searchConfigId?: string, 
     throw new Error('User must be authenticated to store pending reviews');
   }
 
-  const pendingReviews = jobs.map(job => ({
-    user_id: user.id,
-    search_config_id: searchConfigId,
-    job_id: job.id,
-    job_title: job.title,
-    company: job.company,
-    location: job.location,
-    salary: job.salary,
-    description: job.description,
-    job_type: job.type,
-    posted_date: job.postedDate,
-    apply_link: job.applyLink,
-    source: job.source,
-    source_type: sourceType
-  }));
+  console.log('Storing pending reviews:', { jobCount: jobs.length, sourceType, searchConfigId });
+
+  const pendingReviews = jobs.map(job => {
+    // Ensure we have a valid job_id
+    const jobId = job.id || `${sourceType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return {
+      user_id: user.id,
+      search_config_id: searchConfigId,
+      job_id: jobId,
+      job_title: job.title || 'Untitled Position',
+      company: job.company || 'Unknown Company',
+      location: job.location || '',
+      salary: job.salary || '',
+      description: job.description || '',
+      job_type: job.type || 'Full-time',
+      posted_date: job.postedDate || '',
+      apply_link: job.applyLink || '',
+      source: job.source || sourceType,
+      source_type: sourceType
+    };
+  });
+
+  console.log('Prepared pending reviews data:', pendingReviews.slice(0, 2)); // Log first 2 items for debugging
 
   const { data, error } = await supabase
     .from('pending_reviews')
@@ -54,9 +63,11 @@ export const storePendingReviews = async (jobs: Job[], searchConfigId?: string, 
 
   if (error) {
     console.error('Error storing pending reviews:', error);
+    console.error('Failed records sample:', pendingReviews.slice(0, 2));
     throw error;
   }
 
+  console.log('Successfully stored pending reviews:', data?.length || 0);
   return data;
 };
 

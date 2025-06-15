@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -253,30 +252,70 @@ export const SearchSetup = ({ user, onJobsFound }: SearchSetupProps) => {
         error = response.error;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Search function error:', error);
+        throw new Error(error.message || 'Search failed');
+      }
 
+      if (!data) {
+        throw new Error('No response data received');
+      }
+
+      // Handle different response formats
       const jobs = data.jobs || data.jobs_results || [];
       
       if (jobs.length > 0) {
+        // Store in pending reviews with proper source type
         await storePendingReviews(jobs, config.id, config.search_type);
+        
+        // Also show in current tab for immediate viewing
         onJobsFound(jobs);
         
+        // Enhanced success message with navigation guidance
         toast({
-          title: "Test search successful",
-          description: `Found ${jobs.length} jobs. Check the Review Queue to see results.`,
+          title: "🎉 Test search successful!",
+          description: `Found ${jobs.length} jobs and added them to Review Queue. Switch to the Review Queue tab to save your favorites.`,
+          duration: 6000,
         });
       } else {
+        // Handle no results case
+        const userMessage = data.userMessage || "No jobs found for your search criteria.";
+        const suggestion = data.debug_info?.suggestion || "Try adjusting your search query or expanding your criteria.";
+        
         toast({
           title: "No jobs found",
-          description: "Your search didn't return any results. Try adjusting your criteria.",
+          description: `${userMessage} ${suggestion}`,
+          variant: "default",
+          duration: 5000,
         });
       }
     } catch (error) {
       console.error('Error testing search:', error);
+      
+      // Provide specific error feedback based on error type
+      let errorMessage = "Search test failed. Please try again.";
+      let errorDescription = "Unknown error occurred.";
+      
+      if (error.message) {
+        if (error.message.includes('API connectivity failed')) {
+          errorMessage = "API Connection Failed";
+          errorDescription = "Unable to connect to search service. Please check your API key configuration.";
+        } else if (error.message.includes('No job postings found')) {
+          errorMessage = "No Jobs Found";
+          errorDescription = "Try a broader search or include specific job sites in your X-ray query.";
+        } else if (error.message.includes('Network error')) {
+          errorMessage = "Network Error";
+          errorDescription = "Please check your internet connection and try again.";
+        } else {
+          errorDescription = error.message;
+        }
+      }
+      
       toast({
-        title: "Search failed",
-        description: "Failed to test search. Please try again.",
+        title: errorMessage,
+        description: errorDescription,
         variant: "destructive",
+        duration: 7000,
       });
     } finally {
       setTestingConfig(null);
@@ -305,7 +344,9 @@ export const SearchSetup = ({ user, onJobsFound }: SearchSetupProps) => {
   };
 
   const isXrayQueryValid = (query: string) => {
-    return query.includes('site:') && query.trim().length > 0;
+    const hasSiteOperator = query.includes('site:');
+    const hasValidSites = /site:(linkedin\.com|indeed\.com|glassdoor\.com|monster\.com|ziprecruiter\.com|simplyhired\.com|careerbuilder\.com|jobvite\.com|lever\.co|greenhouse\.io|workday\.com|icims\.com|ashbyhq\.com|bamboohr\.com|dover\.com|jazz\.co|workable\.com|gem\.com|breezy\.hr)/i.test(query);
+    return hasSiteOperator && hasValidSites && query.trim().length > 0;
   };
 
   if (!user) {
