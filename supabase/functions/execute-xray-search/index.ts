@@ -6,73 +6,109 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to extract meaningful search terms from X-ray query
-const extractSearchTerms = (query: string) => {
-  // Extract quoted terms (job titles, skills)
-  const quotedTerms = query.match(/"([^"]+)"/g)?.map(term => term.replace(/"/g, '')) || [];
+// Function to extract job-related URLs from Google search results
+const extractJobUrls = (organicResults: any[]): any[] => {
+  if (!organicResults) return [];
   
-  // Extract keywords from parentheses groups
-  const keywordGroups = query.match(/\([^)]+\)/g) || [];
-  const keywords: string[] = [];
+  const jobSites = [
+    'linkedin.com/jobs',
+    'indeed.com',
+    'glassdoor.com',
+    'monster.com',
+    'ziprecruiter.com',
+    'simplyhired.com',
+    'careerbuilder.com',
+    'jobvite.com',
+    'lever.co',
+    'greenhouse.io',
+    'workday.com',
+    'icims.com'
+  ];
   
-  keywordGroups.forEach(group => {
-    // Skip site: groups
-    if (!group.includes('site:')) {
-      const terms = group.replace(/[()]/g, '').split(/\s+OR\s+/);
-      terms.forEach(term => {
-        const cleanTerm = term.replace(/"/g, '').trim();
-        if (cleanTerm && !cleanTerm.includes('site:')) {
-          keywords.push(cleanTerm);
-        }
-      });
-    }
-  });
-  
-  return { quotedTerms, keywords };
+  return organicResults.filter(result => {
+    const link = result.link?.toLowerCase() || '';
+    return jobSites.some(site => link.includes(site));
+  }).map((result, index) => ({
+    position: index + 1,
+    title: result.title || 'Job Title Not Available',
+    company_name: extractCompanyFromResult(result),
+    location: extractLocationFromResult(result),
+    via: result.displayed_link || new URL(result.link).hostname,
+    description: result.snippet || 'No description available',
+    job_highlights: {
+      Responsibilities: result.snippet ? [result.snippet] : []
+    },
+    related_links: [{
+      link: result.link,
+      text: 'Apply Now'
+    }],
+    thumbnail: result.thumbnail
+  }));
 };
 
-// Function to create simplified query for Google Jobs
-const createSimplifiedQuery = (originalQuery: string): string => {
-  console.log('Creating simplified query from:', originalQuery);
+// Extract company name from search result
+const extractCompanyFromResult = (result: any): string => {
+  const title = result.title || '';
+  const snippet = result.snippet || '';
+  const displayedLink = result.displayed_link || '';
   
-  const { quotedTerms, keywords } = extractSearchTerms(originalQuery);
+  // Try to extract from title (common patterns)
+  const titleMatch = title.match(/at\s+([^-|]+)/i) || 
+                    title.match(/\|\s*([^-|]+)$/i) ||
+                    title.match(/-\s*([^-|]+)$/i);
   
-  console.log('Extracted quoted terms:', quotedTerms);
-  console.log('Extracted keywords:', keywords);
+  if (titleMatch) {
+    return titleMatch[1].trim();
+  }
   
-  // Build simplified query
-  const queryParts: string[] = [];
-  
-  // Add quoted terms (job titles)
-  quotedTerms.forEach(term => {
-    queryParts.push(`"${term}"`);
-  });
-  
-  // Add important keywords (limit to most relevant)
-  const priorityKeywords = keywords.filter(keyword => 
-    ['remote', 'ai', 'artificial intelligence', 'machine learning', 'ml', 'data', 'work from home']
-    .some(priority => keyword.toLowerCase().includes(priority.toLowerCase()))
-  );
-  
-  priorityKeywords.slice(0, 3).forEach(keyword => {
-    if (!keyword.includes('work-from-home')) { // Skip hyphenated versions
-      queryParts.push(keyword);
+  // Try to extract from displayed link
+  if (displayedLink.includes('linkedin.com')) {
+    const companyMatch = displayedLink.match(/company\/([^\/]+)/);
+    if (companyMatch) {
+      return companyMatch[1].replace(/-/g, ' ');
     }
-  });
+  }
   
-  const simplifiedQuery = queryParts.join(' ');
-  console.log('Simplified query:', simplifiedQuery);
+  // Default to domain name
+  try {
+    const domain = new URL(result.link).hostname;
+    return domain.replace('www.', '').split('.')[0];
+  } catch {
+    return 'Company Not Specified';
+  }
+};
+
+// Extract location from search result
+const extractLocationFromResult = (result: any): string => {
+  const snippet = result.snippet || '';
+  const title = result.title || '';
   
-  return simplifiedQuery;
+  // Common location patterns
+  const locationPatterns = [
+    /\b([A-Z][a-z]+,?\s+[A-Z]{2})\b/, // City, ST
+    /\b([A-Z][a-z]+\s+[A-Z][a-z]+,?\s+[A-Z]{2})\b/, // City Name, ST
+    /Remote/i,
+    /Work from home/i,
+    /Hybrid/i
+  ];
+  
+  for (const pattern of locationPatterns) {
+    const match = snippet.match(pattern) || title.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+  
+  return 'Location not specified';
 };
 
 // Function to test API connectivity with simple query
 const testApiConnectivity = async (serpApiKey: string) => {
-  console.log('Testing API connectivity with simple query...');
+  console.log('Testing API connectivity with simple Google search...');
   
   const testParams = new URLSearchParams({
-    engine: 'google_jobs',
-    q: 'product manager',
+    engine: 'google',
+    q: 'site:linkedin.com/jobs "product manager"',
     api_key: serpApiKey,
     num: '5'
   });
@@ -89,7 +125,7 @@ const testApiConnectivity = async (serpApiKey: string) => {
     
     if (response.ok) {
       const data = await response.json();
-      console.log('Test query success - jobs found:', data.jobs_results?.length || 0);
+      console.log('Test query success - organic results found:', data.organic_results?.length || 0);
       return { success: true, data };
     } else {
       const errorText = await response.text();
@@ -132,7 +168,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('=== X-ray Search Debug Session ===');
+    console.log('=== X-ray Search Debug Session (Google Search) ===');
     console.log('Original X-ray query:', query);
 
     // Step 1: Test API connectivity
@@ -151,25 +187,25 @@ serve(async (req) => {
       )
     }
 
-    // Step 2: Create simplified query
-    const simplifiedQuery = createSimplifiedQuery(query);
-    
-    // Step 3: Try multiple query approaches
+    // Step 2: Try multiple query approaches with Google Search
     const queryAttempts = [
       {
-        name: 'Simplified Query (No Date Filter)',
-        query: simplifiedQuery,
-        chips: undefined
+        name: 'Original X-ray Query',
+        query: query,
+        tbm: undefined,
+        tbs: undefined
       },
       {
-        name: 'Simplified Query (Past Week)',
-        query: simplifiedQuery,
-        chips: 'date_posted:week'
+        name: 'X-ray Query (Past Week)',
+        query: query,
+        tbm: undefined,
+        tbs: 'qdr:w'
       },
       {
-        name: 'Simplified Query (Past Month)',
-        query: simplifiedQuery,
-        chips: 'date_posted:month'
+        name: 'X-ray Query (Past Month)',
+        query: query,
+        tbm: undefined,
+        tbs: 'qdr:m'
       }
     ];
 
@@ -179,17 +215,17 @@ serve(async (req) => {
     for (const attempt of queryAttempts) {
       console.log(`\n--- Trying: ${attempt.name} ---`);
       console.log('Query:', attempt.query);
-      console.log('Date filter:', attempt.chips || 'None');
+      console.log('Date filter:', attempt.tbs || 'None');
       
       const params = new URLSearchParams({
-        engine: 'google_jobs',
+        engine: 'google',
         q: attempt.query,
         api_key: serpApiKey,
-        num: '10'
+        num: '20' // Get more results since we'll filter for job sites
       });
 
-      if (attempt.chips) {
-        params.append('chips', attempt.chips);
+      if (attempt.tbs) {
+        params.append('tbs', attempt.tbs);
       }
 
       console.log('Full request URL:', `https://serpapi.com/search.json?${params}`);
@@ -208,22 +244,32 @@ serve(async (req) => {
           const data = await response.json();
           console.log('Response keys:', Object.keys(data));
           
-          const jobCount = data.jobs_results?.length || 0;
-          console.log('Jobs found:', jobCount);
+          const organicCount = data.organic_results?.length || 0;
+          console.log('Organic results found:', organicCount);
           
           if (data.error) {
             console.log('API Error:', data.error);
           }
           
+          // Extract job-related results
+          const jobResults = extractJobUrls(data.organic_results || []);
+          const jobCount = jobResults.length;
+          console.log('Job-related results extracted:', jobCount);
+          
           if (jobCount > bestResultCount) {
-            bestResult = data;
+            // Transform the data to match the expected jobs_results format
+            bestResult = {
+              ...data,
+              jobs_results: jobResults,
+              search_metadata: data.search_metadata
+            };
             bestResultCount = jobCount;
-            console.log(`✓ Best result so far: ${jobCount} jobs with ${attempt.name}`);
+            console.log(`✓ Best result so far: ${jobCount} job results with ${attempt.name}`);
           }
           
           // If we found jobs, we can stop here
           if (jobCount > 0) {
-            console.log(`✓ Success with ${attempt.name}! Found ${jobCount} jobs`);
+            console.log(`✓ Success with ${attempt.name}! Found ${jobCount} job results`);
             break;
           }
         } else {
@@ -240,11 +286,12 @@ serve(async (req) => {
 
     // Return the best result we found
     if (bestResult) {
-      console.log(`\n=== Final Result: ${bestResultCount} jobs found ===`);
+      console.log(`\n=== Final Result: ${bestResultCount} job results found ===`);
       
       if (bestResult.jobs_results && bestResult.jobs_results.length > 0) {
         console.log('Sample job title:', bestResult.jobs_results[0].title);
         console.log('Sample company:', bestResult.jobs_results[0].company_name);
+        console.log('Sample URL:', bestResult.jobs_results[0].related_links?.[0]?.link);
       }
       
       return new Response(
@@ -254,15 +301,15 @@ serve(async (req) => {
         }
       )
     } else {
-      console.log('\n=== No jobs found with any query approach ===');
+      console.log('\n=== No job results found with any query approach ===');
       return new Response(
         JSON.stringify({ 
-          error: 'No jobs found with any query variation',
+          error: 'No job-related results found with any query variation',
           debug_info: {
             original_query: query,
-            simplified_query: simplifiedQuery,
             attempts_made: queryAttempts.length,
-            api_connectivity: 'OK'
+            api_connectivity: 'OK',
+            engine_used: 'google'
           }
         }),
         { 
