@@ -83,7 +83,7 @@ export const getSavedJobs = async (): Promise<Job[]> => {
     postedDate: savedJob.posted_date || '',
     applyLink: savedJob.apply_link,
     source: savedJob.source,
-    sourceType: savedJob.source_type || 'manual',
+    sourceType: (savedJob.source_type || 'manual') as 'manual' | 'xray',
     isSaved: true,
     fitRating: savedJob.fit_rating || 0
   }));

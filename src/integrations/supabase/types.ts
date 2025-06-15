@@ -116,8 +116,74 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_reviews: {
+        Row: {
+          apply_link: string | null
+          company: string
+          description: string | null
+          found_at: string
+          id: string
+          is_reviewed: boolean | null
+          job_id: string
+          job_title: string
+          job_type: string | null
+          location: string | null
+          posted_date: string | null
+          salary: string | null
+          search_config_id: string | null
+          source: string
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          apply_link?: string | null
+          company: string
+          description?: string | null
+          found_at?: string
+          id?: string
+          is_reviewed?: boolean | null
+          job_id: string
+          job_title: string
+          job_type?: string | null
+          location?: string | null
+          posted_date?: string | null
+          salary?: string | null
+          search_config_id?: string | null
+          source: string
+          source_type: string
+          user_id: string
+        }
+        Update: {
+          apply_link?: string | null
+          company?: string
+          description?: string | null
+          found_at?: string
+          id?: string
+          is_reviewed?: boolean | null
+          job_id?: string
+          job_title?: string
+          job_type?: string | null
+          location?: string | null
+          posted_date?: string | null
+          salary?: string | null
+          search_config_id?: string | null
+          source?: string
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_reviews_search_config_id_fkey"
+            columns: ["search_config_id"]
+            isOneToOne: false
+            referencedRelation: "search_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_jobs: {
         Row: {
+          application_status: string | null
           apply_link: string | null
           company: string
           created_at: string
@@ -128,6 +194,7 @@ export type Database = {
           job_title: string
           job_type: string | null
           location: string | null
+          personal_notes: string | null
           posted_date: string | null
           salary: string | null
           source: string | null
@@ -135,6 +202,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          application_status?: string | null
           apply_link?: string | null
           company: string
           created_at?: string
@@ -145,6 +213,7 @@ export type Database = {
           job_title: string
           job_type?: string | null
           location?: string | null
+          personal_notes?: string | null
           posted_date?: string | null
           salary?: string | null
           source?: string | null
@@ -152,6 +221,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          application_status?: string | null
           apply_link?: string | null
           company?: string
           created_at?: string
@@ -162,11 +232,99 @@ export type Database = {
           job_title?: string
           job_type?: string | null
           location?: string | null
+          personal_notes?: string | null
           posted_date?: string | null
           salary?: string | null
           source?: string | null
           source_type?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      search_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_recurring: boolean | null
+          keywords: string | null
+          last_run_at: string | null
+          location: string | null
+          name: string
+          next_run_at: string | null
+          query: string
+          remote_only: boolean | null
+          schedule_frequency: string | null
+          search_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_recurring?: boolean | null
+          keywords?: string | null
+          last_run_at?: string | null
+          location?: string | null
+          name: string
+          next_run_at?: string | null
+          query: string
+          remote_only?: boolean | null
+          schedule_frequency?: string | null
+          search_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_recurring?: boolean | null
+          keywords?: string | null
+          last_run_at?: string | null
+          location?: string | null
+          name?: string
+          next_run_at?: string | null
+          query?: string
+          remote_only?: boolean | null
+          schedule_frequency?: string | null
+          search_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_email_preferences: {
+        Row: {
+          created_at: string
+          daily_digest: boolean | null
+          high_priority_alerts: boolean | null
+          id: string
+          immediate_alerts: boolean | null
+          updated_at: string
+          user_id: string
+          weekly_digest: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          daily_digest?: boolean | null
+          high_priority_alerts?: boolean | null
+          id?: string
+          immediate_alerts?: boolean | null
+          updated_at?: string
+          user_id: string
+          weekly_digest?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          daily_digest?: boolean | null
+          high_priority_alerts?: boolean | null
+          id?: string
+          immediate_alerts?: boolean | null
+          updated_at?: string
+          user_id?: string
+          weekly_digest?: boolean | null
         }
         Relationships: []
       }
