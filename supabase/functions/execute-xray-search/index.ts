@@ -22,7 +22,19 @@ const extractJobUrls = (organicResults: any[]): any[] => {
     'lever.co',
     'greenhouse.io',
     'workday.com',
-    'icims.com'
+    'icims.com',
+    'ashbyhq.com',
+    'boards.greenhouse.io',
+    'jobs.lever.co',
+    'jobs.smartrecruiters.com',
+    'jobs.bamboohr.com',
+    'jobs.jobvite.com',
+    'app.dover.com',
+    'careers.icims.com',
+    'apply.jazz.co',
+    'apply.workable.com',
+    'jobs.gem.com',
+    'breezy.hr'
   ];
   
   return organicResults.filter(result => {
@@ -102,38 +114,38 @@ const extractLocationFromResult = (result: any): string => {
   return 'Location not specified';
 };
 
-// Function to test API connectivity with simple query
+// Function to test API connectivity
 const testApiConnectivity = async (serpApiKey: string) => {
-  console.log('Testing API connectivity with simple Google search...');
+  console.log('🔍 Testing SerpAPI connectivity...');
   
   const testParams = new URLSearchParams({
     engine: 'google',
-    q: 'site:linkedin.com/jobs "product manager"',
+    q: 'test query',
     api_key: serpApiKey,
-    num: '5'
+    num: '3'
   });
   
   try {
     const response = await fetch(`https://serpapi.com/search.json?${testParams}`, {
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; XraySearchBot/1.0)'
       }
     });
     
-    console.log('Test query response status:', response.status);
+    console.log('✅ API connectivity test - Status:', response.status);
     
     if (response.ok) {
       const data = await response.json();
-      console.log('Test query success - organic results found:', data.organic_results?.length || 0);
+      console.log('✅ API connectivity test passed');
       return { success: true, data };
     } else {
       const errorText = await response.text();
-      console.log('Test query failed:', errorText);
+      console.log('❌ API connectivity test failed:', errorText);
       return { success: false, error: errorText };
     }
   } catch (error) {
-    console.log('Test query error:', error);
+    console.log('❌ API connectivity test error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -168,13 +180,15 @@ serve(async (req) => {
       )
     }
 
-    console.log('=== X-ray Search Debug Session (Google Search) ===');
-    console.log('Original X-ray query:', query);
+    console.log('=== X-RAY SEARCH DEBUG SESSION ===');
+    console.log('🎯 Original X-ray query:', query);
+    console.log('🔧 Engine: Google Search (NOT Google Jobs)');
+    console.log('📅 Timestamp:', new Date().toISOString());
 
     // Step 1: Test API connectivity
     const connectivityTest = await testApiConnectivity(serpApiKey);
     if (!connectivityTest.success) {
-      console.log('API connectivity test failed, aborting');
+      console.log('❌ API connectivity test failed, aborting search');
       return new Response(
         JSON.stringify({ 
           error: 'API connectivity test failed',
@@ -187,139 +201,164 @@ serve(async (req) => {
       )
     }
 
-    // Step 2: Try multiple query approaches with Google Search
-    const queryAttempts = [
-      {
-        name: 'Original X-ray Query',
-        query: query,
-        tbm: undefined,
-        tbs: undefined
-      },
-      {
-        name: 'X-ray Query (Past Week)',
-        query: query,
-        tbm: undefined,
-        tbs: 'qdr:w'
-      },
-      {
-        name: 'X-ray Query (Past Month)',
-        query: query,
-        tbm: undefined,
-        tbs: 'qdr:m'
-      }
-    ];
+    // Step 2: Execute the ORIGINAL X-ray query without modification
+    console.log('\n🚀 Executing X-ray search with ORIGINAL query (no modifications)');
+    console.log('📝 Query being sent to SerpAPI:', query);
+    
+    const searchParams = new URLSearchParams({
+      engine: 'google',
+      q: query,
+      api_key: serpApiKey,
+      num: '20', // Get more results since we'll filter for job sites
+      safe: 'off' // Ensure no filtering
+    });
 
-    let bestResult = null;
-    let bestResultCount = 0;
+    const fullUrl = `https://serpapi.com/search.json?${searchParams}`;
+    console.log('🌐 Full SerpAPI URL:', fullUrl.replace(serpApiKey, 'HIDDEN_API_KEY'));
 
-    for (const attempt of queryAttempts) {
-      console.log(`\n--- Trying: ${attempt.name} ---`);
-      console.log('Query:', attempt.query);
-      console.log('Date filter:', attempt.tbs || 'None');
-      
-      const params = new URLSearchParams({
-        engine: 'google',
-        q: attempt.query,
-        api_key: serpApiKey,
-        num: '20' // Get more results since we'll filter for job sites
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; XraySearchBot/1.0)'
+        }
       });
 
-      if (attempt.tbs) {
-        params.append('tbs', attempt.tbs);
-      }
+      console.log('📡 SerpAPI Response Status:', response.status);
 
-      console.log('Full request URL:', `https://serpapi.com/search.json?${params}`);
-
-      try {
-        const response = await fetch(`https://serpapi.com/search.json?${params}`, {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
-          }
-        });
-
-        console.log('Response status:', response.status);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Response keys:', Object.keys(data));
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Response Data Keys:', Object.keys(data));
+        
+        if (data.error) {
+          console.log('⚠️ SerpAPI Error:', data.error);
+          return new Response(
+            JSON.stringify({ 
+              error: 'SerpAPI Error: ' + data.error,
+              debug_info: {
+                original_query: query,
+                engine_used: 'google',
+                api_response_keys: Object.keys(data)
+              }
+            }),
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
+        }
+        
+        const organicCount = data.organic_results?.length || 0;
+        console.log('🔍 Total organic results found:', organicCount);
+        
+        if (organicCount > 0) {
+          console.log('📋 Sample results:');
+          data.organic_results.slice(0, 3).forEach((result, index) => {
+            console.log(`  ${index + 1}. ${result.title} - ${result.link}`);
+          });
+        }
+        
+        // Extract job-related results
+        const jobResults = extractJobUrls(data.organic_results || []);
+        const jobCount = jobResults.length;
+        console.log('💼 Job-related results extracted:', jobCount);
+        
+        if (jobCount > 0) {
+          console.log('🎯 Job results sample:');
+          jobResults.slice(0, 3).forEach((job, index) => {
+            console.log(`  ${index + 1}. ${job.title} at ${job.company_name} - ${job.related_links[0]?.link}`);
+          });
           
-          const organicCount = data.organic_results?.length || 0;
-          console.log('Organic results found:', organicCount);
+          // Transform the data to match the expected jobs_results format
+          const resultData = {
+            ...data,
+            jobs_results: jobResults,
+            search_metadata: {
+              ...data.search_metadata,
+              engine_used: 'google_search',
+              original_query: query,
+              job_results_extracted: jobCount,
+              total_organic_results: organicCount
+            }
+          };
           
-          if (data.error) {
-            console.log('API Error:', data.error);
-          }
+          console.log('✅ SUCCESS: Returning', jobCount, 'job results from X-ray search');
           
-          // Extract job-related results
-          const jobResults = extractJobUrls(data.organic_results || []);
-          const jobCount = jobResults.length;
-          console.log('Job-related results extracted:', jobCount);
-          
-          if (jobCount > bestResultCount) {
-            // Transform the data to match the expected jobs_results format
-            bestResult = {
-              ...data,
-              jobs_results: jobResults,
-              search_metadata: data.search_metadata
-            };
-            bestResultCount = jobCount;
-            console.log(`✓ Best result so far: ${jobCount} job results with ${attempt.name}`);
-          }
-          
-          // If we found jobs, we can stop here
-          if (jobCount > 0) {
-            console.log(`✓ Success with ${attempt.name}! Found ${jobCount} job results`);
-            break;
-          }
+          return new Response(
+            JSON.stringify(resultData),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
         } else {
-          const errorText = await response.text();
-          console.log('Request failed:', errorText);
+          console.log('ℹ️ No job-related results found in organic results');
+          console.log('🔍 This could mean:');
+          console.log('   1. The X-ray query is too specific');
+          console.log('   2. No job sites match the query criteria');
+          console.log('   3. The query syntax needs adjustment');
+          
+          return new Response(
+            JSON.stringify({ 
+              error: 'No job-related results found',
+              debug_info: {
+                original_query: query,
+                engine_used: 'google_search',
+                total_organic_results: organicCount,
+                organic_results_sample: data.organic_results?.slice(0, 5).map(r => ({
+                  title: r.title,
+                  link: r.link
+                })) || [],
+                suggestion: 'Try a broader X-ray query or check the syntax'
+              }
+            }),
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          )
         }
-      } catch (error) {
-        console.log('Request error:', error.message);
+      } else {
+        const errorText = await response.text();
+        console.log('❌ SerpAPI Request failed with status:', response.status);
+        console.log('❌ Error response:', errorText);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: `SerpAPI request failed with status ${response.status}`,
+            details: errorText,
+            debug_info: {
+              original_query: query,
+              engine_used: 'google_search',
+              api_status: response.status
+            }
+          }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
       }
+    } catch (error) {
+      console.log('❌ Request error:', error.message);
+      console.log('❌ Full error:', error);
       
-      // Small delay between attempts
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    // Return the best result we found
-    if (bestResult) {
-      console.log(`\n=== Final Result: ${bestResultCount} job results found ===`);
-      
-      if (bestResult.jobs_results && bestResult.jobs_results.length > 0) {
-        console.log('Sample job title:', bestResult.jobs_results[0].title);
-        console.log('Sample company:', bestResult.jobs_results[0].company_name);
-        console.log('Sample URL:', bestResult.jobs_results[0].related_links?.[0]?.link);
-      }
-      
-      return new Response(
-        JSON.stringify(bestResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    } else {
-      console.log('\n=== No job results found with any query approach ===');
       return new Response(
         JSON.stringify({ 
-          error: 'No job-related results found with any query variation',
+          error: 'Network or request error: ' + error.message,
           debug_info: {
             original_query: query,
-            attempts_made: queryAttempts.length,
-            api_connectivity: 'OK',
-            engine_used: 'google'
+            engine_used: 'google_search',
+            error_type: 'network_error'
           }
         }),
         { 
-          status: 200, 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
   } catch (error) {
-    console.error('Edge function error:', error);
+    console.error('💥 Edge function error:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
