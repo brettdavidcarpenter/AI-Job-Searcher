@@ -6,9 +6,7 @@ import { SearchSetup } from "@/components/SearchSetup";
 import { ReviewQueue } from "@/components/ReviewQueue";
 import { SavedJobs } from "@/components/SavedJobs";
 import { JobSearchTab } from "@/components/JobSearchTab";
-import { HeroSearchLanding } from "@/components/HeroSearchLanding";
 import { MinimalNavSidebar } from "@/components/MinimalNavSidebar";
-import { MinimalHeader } from "@/components/MinimalHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
@@ -26,7 +24,6 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [activeTab, setActiveTab] = useState("search");
   const [showSetupModal, setShowSetupModal] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
   
   const { savedJobs, handleSaveJob, handleUnsaveJob, handleRateJob } = useSavedJobs(user);
   const { pendingReviews, pendingCount, refreshReviews, setPendingReviews } = usePendingReviews(user);
@@ -64,61 +61,58 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
     setShowSetupModal(true);
   };
 
-  const handleHeroSearch = async (searchTerm: string, location: string) => {
-    setHasSearched(true);
-    setActiveTab("search");
-    // Trigger the actual search
-    await handleSearch(searchTerm, location, "", false);
-  };
-
-  const handleShowFeatures = () => {
-    setHasSearched(true);
-    setActiveTab("search");
-  };
-
-  // Show hero landing if user hasn't searched yet
-  if (!hasSearched) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <HeroSearchLanding 
-          onSearch={handleHeroSearch}
-          onShowFeatures={handleShowFeatures}
-        />
-        
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)} 
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <MinimalNavSidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        user={user}
-        pendingCount={pendingCount}
-        savedJobsCount={savedJobs.length}
-        onShowAuth={() => setShowAuthModal(true)}
-        onSignOut={handleSignOut}
-      />
-      
-      <div className="flex-1">
-        <MinimalHeader
+      {/* Only show navigation sidebar if user is signed in */}
+      {user && (
+        <MinimalNavSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           user={user}
-          onSignOut={handleSignOut}
+          pendingCount={pendingCount}
+          savedJobsCount={savedJobs.length}
           onShowAuth={() => setShowAuthModal(true)}
-          onShowResumeUpload={() => setShowResumeUpload(true)}
+          onSignOut={handleSignOut}
         />
+      )}
+      
+      <div className={`flex-1 ${user ? 'ml-16' : ''}`}>
+        {/* Floating auth button for non-authenticated users */}
+        {!user && (
+          <div className="absolute top-6 right-6 z-30">
+            <Button 
+              onClick={() => setShowAuthModal(true)} 
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Sign In
+            </Button>
+          </div>
+        )}
+
+        {/* Floating sign out button for authenticated users */}
+        {user && (
+          <div className="absolute top-6 right-6 z-30 flex items-center gap-3">
+            <span className="text-sm text-gray-600">{user.email}</span>
+            <Button 
+              variant="outline" 
+              onClick={handleSignOut}
+              size="sm"
+            >
+              Sign Out
+            </Button>
+          </div>
+        )}
         
-        <div className="ml-16 px-6 py-6">
+        <div className="px-6 py-6">
           {activeTab === "search" && (
-            <JobSearchTab user={user} onSetupAutomation={handleSetupAutomation} />
+            <JobSearchTab 
+              user={user} 
+              onSetupAutomation={handleSetupAutomation}
+              onShowResumeUpload={() => setShowResumeUpload(true)}
+            />
           )}
 
-          {activeTab === "review" && (
+          {activeTab === "review" && user && (
             <ReviewQueue 
               user={user} 
               onSaveJob={onSaveJob}

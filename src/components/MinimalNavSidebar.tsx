@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Eye, Bookmark, Settings, User } from "lucide-react";
+import { Search, Eye, Bookmark, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
@@ -46,11 +46,11 @@ export const MinimalNavSidebar = ({
   ];
 
   return (
-    <div className="fixed left-0 top-0 h-full w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 z-40">
+    <div className="fixed left-0 top-0 h-full w-16 bg-gray-50 flex flex-col items-center py-4 z-40">
       {/* Logo/Brand */}
       <div className="mb-8">
-        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-          <Search className="h-5 w-5 text-white" />
+        <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+          <Search className="h-5 w-5 text-gray-600" />
         </div>
       </div>
 
@@ -63,14 +63,15 @@ export const MinimalNavSidebar = ({
           return (
             <Button
               key={item.id}
-              variant={isActive ? "default" : "ghost"}
+              variant="ghost"
               size="sm"
               onClick={() => onTabChange(item.id)}
               disabled={item.disabled}
               className={`
                 w-12 h-12 p-0 relative flex flex-col items-center justify-center
-                ${isActive ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}
+                ${isActive ? 'bg-gray-100' : 'hover:bg-gray-100'}
                 ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                text-gray-600 hover:text-gray-700
               `}
               title={item.label}
             >
@@ -89,27 +90,15 @@ export const MinimalNavSidebar = ({
 
       {/* User Actions */}
       <div className="mt-auto">
-        {user ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSignOut}
-            className="w-12 h-12 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            title="Sign Out"
-          >
-            <User className="h-5 w-5" />
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onShowAuth}
-            className="w-12 h-12 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            title="Sign In"
-          >
-            <User className="h-5 w-5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSignOut}
+          className="w-12 h-12 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+          title="Sign Out"
+        >
+          <User className="h-5 w-5" />
+        </Button>
       </div>
     </div>
   );
