@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Search, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SemanticSearchBarProps {
   onSearch: (searchTerm: string, location: string, keywords: string, remote: boolean) => void;
