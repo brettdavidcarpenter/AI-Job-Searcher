@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Eye, Bookmark } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
+import { usePendingReviews } from "@/hooks/usePendingReviews";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
 
@@ -26,6 +27,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   const [showSetupModal, setShowSetupModal] = useState(false);
   
   const { savedJobs, handleSaveJob, handleUnsaveJob, handleRateJob } = useSavedJobs(user);
+  const { pendingReviews, pendingCount, refreshReviews, setPendingReviews } = usePendingReviews(user);
 
   // Listen for auth modal trigger
   useEffect(() => {
@@ -38,8 +40,9 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   }, []);
 
   const handleJobsFound = (jobs: Job[]) => {
-    // Switch to review queue when new jobs are found
+    // Switch to review queue when new jobs are found and refresh the reviews
     setActiveTab("review");
+    refreshReviews();
   };
 
   const onSaveJob = async (job: Job) => {
@@ -74,6 +77,11 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
           <TabsTrigger value="review" className="text-lg py-3">
             <Eye className="h-4 w-4 mr-2" />
             Review Queue
+            {user && pendingCount > 0 && (
+              <span className="ml-1 bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs">
+                {pendingCount}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
             <Bookmark className="h-4 w-4 mr-2" />
@@ -86,7 +94,13 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         </TabsContent>
 
         <TabsContent value="review">
-          <ReviewQueue user={user} onSaveJob={onSaveJob} />
+          <ReviewQueue 
+            user={user} 
+            onSaveJob={onSaveJob}
+            pendingReviews={pendingReviews}
+            setPendingReviews={setPendingReviews}
+            refreshReviews={refreshReviews}
+          />
         </TabsContent>
 
         <TabsContent value="saved">

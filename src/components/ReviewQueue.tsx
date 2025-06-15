@@ -5,37 +5,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Bookmark, Eye, Trash2, CheckSquare } from "lucide-react";
+import { ChevronDown, ChevronUp, Bookmark, Eye, Trash2, CheckSquare, MapPin, DollarSign, Clock, Building } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { getPendingReviews, markAsReviewed, convertPendingReviewToJob, type PendingReview } from "@/services/pendingReviewsService";
+import { markAsReviewed, convertPendingReviewToJob, type PendingReview } from "@/services/pendingReviewsService";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
 
 interface ReviewQueueProps {
   user: User | null;
   onSaveJob: (job: Job) => void;
+  pendingReviews: PendingReview[];
+  setPendingReviews: (reviews: PendingReview[]) => void;
+  refreshReviews: () => void;
 }
 
-export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
-  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
+export const ReviewQueue = ({ user, onSaveJob, pendingReviews, setPendingReviews, refreshReviews }: ReviewQueueProps) => {
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set());
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      loadPendingReviews();
-    }
-  }, [user]);
-
-  const loadPendingReviews = async () => {
-    try {
-      const data = await getPendingReviews();
-      setPendingReviews(data);
-    } catch (error) {
-      console.error('Error loading pending reviews:', error);
-    }
-  };
 
   const handleSelectReview = (reviewId: string, checked: boolean) => {
     const newSelected = new Set(selectedReviews);
@@ -75,7 +62,7 @@ export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
       }
 
       await markAsReviewed(Array.from(selectedReviews));
-      await loadPendingReviews();
+      refreshReviews();
       setSelectedReviews(new Set());
 
       toast({
@@ -107,7 +94,7 @@ export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
     setIsLoading(true);
     try {
       await markAsReviewed(Array.from(selectedReviews));
-      await loadPendingReviews();
+      refreshReviews();
       setSelectedReviews(new Set());
 
       toast({
@@ -131,7 +118,7 @@ export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
       const job = convertPendingReviewToJob(review);
       await onSaveJob(job);
       await markAsReviewed([review.id]);
-      await loadPendingReviews();
+      refreshReviews();
 
       toast({
         title: "Job saved",
@@ -173,6 +160,14 @@ export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
       case 'manual': return 'outline';
       default: return 'outline';
     }
+  };
+
+  const getJobHighlights = (review: PendingReview): string[] => {
+    const highlights = [];
+    if (review.job_type) highlights.push(review.job_type);
+    if (review.salary && review.salary !== 'Salary not specified') highlights.push(review.salary);
+    if (review.location) highlights.push(review.location);
+    return highlights.slice(0, 3); // Show max 3 highlights
   };
 
   if (!user) {
@@ -230,94 +225,127 @@ export const ReviewQueue = ({ user, onSaveJob }: ReviewQueueProps) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {pendingReviews.map((review) => (
-            <Card key={review.id} className="border border-gray-200">
-              <Collapsible
-                open={expandedReviews.has(review.id)}
-                onOpenChange={() => toggleExpanded(review.id)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      <Checkbox
-                        checked={selectedReviews.has(review.id)}
-                        onCheckedChange={(checked) => handleSelectReview(review.id, checked as boolean)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-lg">{review.job_title}</CardTitle>
-                          <Badge variant={getSourceBadgeColor(review.source_type)}>
-                            {review.source_type.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <p className="text-blue-600 font-medium">{review.company}</p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                          {review.location && <span>{review.location}</span>}
-                          {review.salary && <span className="text-green-600 font-medium">{review.salary}</span>}
-                          <span>Found: {formatDate(review.found_at)}</span>
+          {pendingReviews.map((review) => {
+            const highlights = getJobHighlights(review);
+            
+            return (
+              <Card key={review.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                <Collapsible
+                  open={expandedReviews.has(review.id)}
+                  onOpenChange={() => toggleExpanded(review.id)}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <Checkbox
+                          checked={selectedReviews.has(review.id)}
+                          onCheckedChange={(checked) => handleSelectReview(review.id, checked as boolean)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CardTitle className="text-lg leading-tight">{review.job_title}</CardTitle>
+                            <Badge variant={getSourceBadgeColor(review.source_type)} className="text-xs">
+                              {review.source_type.toUpperCase()}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-1 mb-3">
+                            <Building className="h-4 w-4 text-blue-600" />
+                            <p className="text-blue-600 font-medium">{review.company}</p>
+                          </div>
+                          
+                          {/* Enhanced job highlights */}
+                          <div className="flex flex-wrap gap-3 mb-3">
+                            {review.location && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <MapPin className="h-3 w-3" />
+                                <span>{review.location}</span>
+                              </div>
+                            )}
+                            {review.salary && review.salary !== 'Salary not specified' && (
+                              <div className="flex items-center gap-1 text-sm text-green-600 font-medium">
+                                <DollarSign className="h-3 w-3" />
+                                <span>{review.salary}</span>
+                              </div>
+                            )}
+                            {review.job_type && (
+                              <Badge variant="outline" className="text-xs">
+                                {review.job_type}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Job description preview */}
+                          {review.description && (
+                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed mb-2">
+                              {review.description}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="h-3 w-3" />
+                            <span>Found: {formatDate(review.found_at)}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveIndividual(review)}
-                      >
-                        <Bookmark className="h-4 w-4 mr-1" />
-                        Save
-                      </Button>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          {expandedReviews.has(review.id) ? 
-                            <ChevronUp className="h-4 w-4" /> : 
-                            <ChevronDown className="h-4 w-4" />
-                          }
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveIndividual(review)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Bookmark className="h-4 w-4 mr-1" />
+                          Save
                         </Button>
-                      </CollapsibleTrigger>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <div className="space-y-4">
-                      {review.job_type && (
-                        <div>
-                          <Badge variant="secondary">{review.job_type}</Badge>
-                        </div>
-                      )}
-                      
-                      {review.description && (
-                        <div>
-                          <h4 className="font-medium mb-2">Job Description</h4>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            {review.description}
-                          </p>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center pt-4 border-t">
-                        <div className="text-sm text-gray-500">
-                          Source: {review.source}
-                          {review.posted_date && <span> | Posted: {review.posted_date}</span>}
-                        </div>
-                        {review.apply_link && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(review.apply_link, '_blank')}
-                          >
-                            View Original
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            {expandedReviews.has(review.id) ? 
+                              <ChevronUp className="h-4 w-4" /> : 
+                              <ChevronDown className="h-4 w-4" />
+                            }
                           </Button>
-                        )}
+                        </CollapsibleTrigger>
                       </div>
                     </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          ))}
+                  </CardHeader>
+                  
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      <div className="space-y-4">
+                        {review.description && (
+                          <div>
+                            <h4 className="font-medium mb-2">Full Job Description</h4>
+                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                              {review.description}
+                            </p>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center pt-4 border-t">
+                          <div className="text-sm text-gray-500">
+                            Source: {review.source}
+                            {review.posted_date && review.posted_date !== 'Recently posted' && (
+                              <span> | Posted: {review.posted_date}</span>
+                            )}
+                          </div>
+                          {review.apply_link && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(review.apply_link, '_blank')}
+                            >
+                              View Original
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

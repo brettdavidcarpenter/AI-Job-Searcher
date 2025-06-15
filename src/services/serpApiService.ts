@@ -27,6 +27,15 @@ export interface SerpApiResponse {
   };
 }
 
+const generateJobId = (title: string, company: string, location: string): string => {
+  const combined = `${title}-${company}-${location}`.toLowerCase();
+  const hash = combined.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return `xray-${Math.abs(hash)}-${Date.now()}`;
+};
+
 export const executeXraySearch = async (query: string): Promise<SerpApiJob[]> => {
   try {
     console.log('Executing X-ray search with query:', query);
@@ -59,8 +68,8 @@ export const executeXraySearch = async (query: string): Promise<SerpApiJob[]> =>
 };
 
 export const convertSerpJobToJob = (serpJob: SerpApiJob, index: number) => {
-  // Ensure we have a consistent job ID
-  const jobId = serpJob.id || `xray-${Date.now()}-${index}`;
+  // Generate a consistent job ID using hash of job details
+  const jobId = generateJobId(serpJob.title, serpJob.company_name, serpJob.location);
   
   return {
     id: jobId,
