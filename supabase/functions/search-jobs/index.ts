@@ -59,6 +59,153 @@ const STATIC_FALLBACK_JOBS = [
   }
 ];
 
+// API Key Management System
+interface ApiKeyHealth {
+  key_name: string;
+  last_success?: string;
+  last_failure?: string;
+  consecutive_failures: number;
+  rate_limited_until?: string;
+  total_requests_today: number;
+  success_rate: number;
+}
+
+async function getApiKeyHealth(supabase: any, keyName: string): Promise<ApiKeyHealth | null> {
+  const { data, error } = await supabase
+    .from('api_key_health')
+    .select('*')
+    .eq('key_name', keyName)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching API key health:', error);
+    return null;
+  }
+
+  return data;
+}
+
+async function updateApiKeyHealth(supabase: any, keyName: string, success: boolean, rateLimited = false) {
+  const now = new Date().toISOString();
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    // Get current health record
+    const currentHealth = await getApiKeyHealth(supabase, keyName);
+    
+    let updateData: any = {
+      updated_at: now,
+    };
+
+    if (success) {
+      updateData.last_success = now;
+      updateData.consecutive_failures = 0;
+      updateData.rate_limited_until = null;
+    } else {
+      updateData.last_failure = now;
+      updateData.consecutive_failures = (currentHealth?.consecutive_failures || 0) + 1;
+      
+      if (rateLimited) {
+        // Rate limits typically last 15-60 minutes, we'll estimate 30 minutes
+        const rateLimitExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        updateData.rate_limited_until = rateLimitExpiry;
+      }
+    }
+
+    // Increment daily request count
+    const dailyCount = currentHealth?.total_requests_today || 0;
+    const lastUpdate = currentHealth?.updated_at ? new Date(currentHealth.updated_at).toISOString().split('T')[0] : null;
+    
+    if (lastUpdate !== today) {
+      // Reset daily count for new day
+      updateData.total_requests_today = 1;
+    } else {
+      updateData.total_requests_today = dailyCount + 1;
+    }
+
+    // Calculate success rate (simple approximation)
+    if (currentHealth) {
+      const totalRequests = updateData.total_requests_today;
+      const failures = success ? currentHealth.consecutive_failures : updateData.consecutive_failures;
+      updateData.success_rate = Math.max(0, ((totalRequests - failures) / totalRequests) * 100);
+    }
+
+    // Upsert the health record
+    await supabase
+      .from('api_key_health')
+      .upsert({
+        key_name: keyName,
+        ...updateData
+      });
+
+  } catch (error) {
+    console.error('Error updating API key health:', error);
+  }
+}
+
+function isKeyAvailable(health: ApiKeyHealth | null): boolean {
+  if (!health) return true; // New key, assume available
+  
+  // Check if rate limited
+  if (health.rate_limited_until) {
+    const rateLimitExpiry = new Date(health.rate_limited_until);
+    if (new Date() < rateLimitExpiry) {
+      return false;
+    }
+  }
+
+  // Check consecutive failures (more than 5 failures = temporarily unavailable)
+  if (health.consecutive_failures >= 5) {
+    return false;
+  }
+
+  return true;
+}
+
+async function selectBestApiKey(supabase: any): Promise<{ key: string | null, keyName: string }> {
+  const rapidApiKey1 = Deno.env.get('RAPIDAPI_KEY');
+  const rapidApiKey2 = Deno.env.get('RAPIDAPI_KEY_2');
+
+  if (!rapidApiKey1 && !rapidApiKey2) {
+    console.error('No RAPIDAPI keys found in environment variables');
+    return { key: null, keyName: 'none' };
+  }
+
+  // Get health status for both keys
+  const key1Health = rapidApiKey1 ? await getApiKeyHealth(supabase, 'RAPIDAPI_KEY') : null;
+  const key2Health = rapidApiKey2 ? await getApiKeyHealth(supabase, 'RAPIDAPI_KEY_2') : null;
+
+  const key1Available = rapidApiKey1 && isKeyAvailable(key1Health);
+  const key2Available = rapidApiKey2 && isKeyAvailable(key2Health);
+
+  console.log('API Key availability:', { 
+    key1Available, 
+    key2Available,
+    key1Failures: key1Health?.consecutive_failures || 0,
+    key2Failures: key2Health?.consecutive_failures || 0
+  });
+
+  // Selection logic: prefer key with better health
+  if (key1Available && key2Available) {
+    // Both available, choose the one with better health
+    const key1Score = (key1Health?.success_rate || 100) - (key1Health?.consecutive_failures || 0);
+    const key2Score = (key2Health?.success_rate || 100) - (key2Health?.consecutive_failures || 0);
+    
+    if (key2Score > key1Score) {
+      return { key: rapidApiKey2, keyName: 'RAPIDAPI_KEY_2' };
+    } else {
+      return { key: rapidApiKey1, keyName: 'RAPIDAPI_KEY' };
+    }
+  } else if (key1Available) {
+    return { key: rapidApiKey1, keyName: 'RAPIDAPI_KEY' };
+  } else if (key2Available) {
+    return { key: rapidApiKey2, keyName: 'RAPIDAPI_KEY_2' };
+  } else {
+    console.error('No API keys available - all rate limited or failed');
+    return { key: null, keyName: 'none' };
+  }
+}
+
 // Helper function to create a hash of search parameters
 function createSearchHash(params: any): string {
   const normalized = {
@@ -120,15 +267,17 @@ serve(async (req) => {
       )
     }
 
-    // Get the RAPIDAPI_KEY from Supabase secrets
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY')
+    // Select the best API key using smart selection
+    const { key: rapidApiKey, keyName } = await selectBestApiKey(supabase);
+    
     if (!rapidApiKey) {
-      console.error('RAPIDAPI_KEY not found in environment variables')
-      return await handleApiFallback(supabase, searchParams, 'api_key_missing')
+      console.error('No API keys available')
+      return await handleApiFallback(supabase, searchParams, 'no_keys_available')
     }
 
     let allJobs = []
     let apiSuccess = false
+    const requestStartTime = Date.now()
 
     try {
       // Build search query for JSearch
@@ -161,7 +310,7 @@ serve(async (req) => {
         jsearchUrl.searchParams.append('work_from_home', 'true')
       }
 
-      console.log('Calling JSearch API with query:', searchQuery)
+      console.log(`Calling JSearch API with key: ${keyName}, query:`, searchQuery)
 
       const jsearchResponse = await fetch(jsearchUrl.toString(), {
         method: 'GET',
@@ -171,10 +320,12 @@ serve(async (req) => {
         }
       })
 
-      console.log('JSearch response status:', jsearchResponse.status)
+      const requestDuration = Date.now() - requestStartTime
+      console.log(`JSearch response status: ${jsearchResponse.status}, duration: ${requestDuration}ms`)
 
       if (jsearchResponse.status === 429) {
-        console.log('Rate limit reached for JSearch API')
+        console.log(`Rate limit reached for ${keyName}`)
+        await updateApiKeyHealth(supabase, keyName, false, true)
         return await handleApiFallback(supabase, searchParams, 'rate_limit')
       }
 
@@ -189,12 +340,17 @@ serve(async (req) => {
           }))
           allJobs.push(...jsearchJobs)
           apiSuccess = true
+          
+          // Update key health on success
+          await updateApiKeyHealth(supabase, keyName, true)
         }
       } else {
-        console.error('JSearch API error:', jsearchResponse.status, jsearchResponse.statusText)
+        console.error(`JSearch API error: ${jsearchResponse.status} ${jsearchResponse.statusText}`)
+        await updateApiKeyHealth(supabase, keyName, false, false)
       }
     } catch (error) {
-      console.error('JSearch API error:', error)
+      console.error(`JSearch API error with ${keyName}:`, error)
+      await updateApiKeyHealth(supabase, keyName, false, false)
     }
 
     // If API call failed, use fallback
@@ -210,7 +366,8 @@ serve(async (req) => {
       data: allJobs,
       num_pages: 1,
       source: 'jsearch',
-      fallback_level: 'live'
+      fallback_level: 'live',
+      api_key_used: keyName
     }
 
     // Store as last successful search (fire and forget)
@@ -232,6 +389,7 @@ serve(async (req) => {
 
     // Cache the successful result (fire and forget)
     try {
+      const requestDuration = Date.now() - requestStartTime
       await supabase
         .from('cached_job_searches')
         .upsert({
@@ -240,6 +398,8 @@ serve(async (req) => {
           results: response,
           result_count: allJobs.length,
           search_source: 'api',
+          api_key_used: keyName,
+          request_duration_ms: requestDuration,
           expires_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() // 6 hours from now
         })
       console.log('Results cached successfully')
@@ -247,7 +407,7 @@ serve(async (req) => {
       console.error('Failed to cache results:', cacheError)
     }
 
-    console.log('Returning fresh results:', allJobs.length, 'jobs')
+    console.log(`Returning fresh results: ${allJobs.length} jobs using ${keyName}`)
     
     return new Response(
       JSON.stringify(response),
@@ -392,8 +552,8 @@ function getFriendlyErrorMessage(reason: string): string {
       return 'API rate limit reached.'
     case 'api_error':
       return 'Job search service temporarily unavailable.'
-    case 'api_key_missing':
-      return 'Search service configuration issue.'
+    case 'no_keys_available':
+      return 'All API keys are currently rate limited.'
     default:
       return 'Search service temporarily unavailable.'
   }

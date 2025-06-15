@@ -9,11 +9,52 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      api_key_health: {
+        Row: {
+          consecutive_failures: number | null
+          created_at: string
+          id: string
+          key_name: string
+          last_failure: string | null
+          last_success: string | null
+          rate_limited_until: string | null
+          success_rate: number | null
+          total_requests_today: number | null
+          updated_at: string
+        }
+        Insert: {
+          consecutive_failures?: number | null
+          created_at?: string
+          id?: string
+          key_name: string
+          last_failure?: string | null
+          last_success?: string | null
+          rate_limited_until?: string | null
+          success_rate?: number | null
+          total_requests_today?: number | null
+          updated_at?: string
+        }
+        Update: {
+          consecutive_failures?: number | null
+          created_at?: string
+          id?: string
+          key_name?: string
+          last_failure?: string | null
+          last_success?: string | null
+          rate_limited_until?: string | null
+          success_rate?: number | null
+          total_requests_today?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cached_job_searches: {
         Row: {
+          api_key_used: string | null
           cached_at: string
           expires_at: string
           id: string
+          request_duration_ms: number | null
           result_count: number | null
           results: Json
           search_params: Json
@@ -21,9 +62,11 @@ export type Database = {
           search_source: string | null
         }
         Insert: {
+          api_key_used?: string | null
           cached_at?: string
           expires_at?: string
           id?: string
+          request_duration_ms?: number | null
           result_count?: number | null
           results: Json
           search_params: Json
@@ -31,9 +74,11 @@ export type Database = {
           search_source?: string | null
         }
         Update: {
+          api_key_used?: string | null
           cached_at?: string
           expires_at?: string
           id?: string
+          request_duration_ms?: number | null
           result_count?: number | null
           results?: Json
           search_params?: Json

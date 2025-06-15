@@ -40,6 +40,7 @@ export interface JSearchResponse {
   fallback_level?: 'live' | 'cache' | 'expired_cache' | 'recent_global' | 'static' | 'error';
   cache_age_hours?: number;
   message?: string;
+  api_key_used?: string;
 }
 
 export interface SearchResult {
@@ -49,6 +50,7 @@ export interface SearchResult {
   fallbackLevel: string;
   cacheAgeHours?: number;
   errorMessage?: string;
+  apiKeyUsed?: string;
 }
 
 export const searchJobs = async (params: JobSearchParams): Promise<SearchResult> => {
@@ -74,7 +76,8 @@ export const searchJobs = async (params: JobSearchParams): Promise<SearchResult>
       isFallback,
       fallbackLevel: response.fallback_level || 'unknown',
       cacheAgeHours: response.cache_age_hours,
-      errorMessage: response.message
+      errorMessage: response.message,
+      apiKeyUsed: response.api_key_used
     };
   } catch (error) {
     console.error('Error in searchJobs:', error);
