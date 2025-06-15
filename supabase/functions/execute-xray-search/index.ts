@@ -6,45 +6,101 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to convert pipes to OR statements while preserving quoted strings
-const convertPipesToOR = (query: string): string => {
-  // Split the query into parts, preserving quoted strings
-  const parts: string[] = [];
-  let currentPart = '';
-  let inQuotes = false;
-  let quoteChar = '';
+// Function to extract meaningful search terms from X-ray query
+const extractSearchTerms = (query: string) => {
+  // Extract quoted terms (job titles, skills)
+  const quotedTerms = query.match(/"([^"]+)"/g)?.map(term => term.replace(/"/g, '')) || [];
   
-  for (let i = 0; i < query.length; i++) {
-    const char = query[i];
-    
-    if ((char === '"' || char === "'") && !inQuotes) {
-      inQuotes = true;
-      quoteChar = char;
-      currentPart += char;
-    } else if (char === quoteChar && inQuotes) {
-      inQuotes = false;
-      quoteChar = '';
-      currentPart += char;
-    } else if (char === '|' && !inQuotes) {
-      // Found a pipe outside of quotes - this is where we split
-      if (currentPart.trim()) {
-        parts.push(currentPart.trim());
-        currentPart = '';
-      }
-      // Skip the pipe character
-    } else {
-      currentPart += char;
+  // Extract keywords from parentheses groups
+  const keywordGroups = query.match(/\([^)]+\)/g) || [];
+  const keywords: string[] = [];
+  
+  keywordGroups.forEach(group => {
+    // Skip site: groups
+    if (!group.includes('site:')) {
+      const terms = group.replace(/[()]/g, '').split(/\s+OR\s+/);
+      terms.forEach(term => {
+        const cleanTerm = term.replace(/"/g, '').trim();
+        if (cleanTerm && !cleanTerm.includes('site:')) {
+          keywords.push(cleanTerm);
+        }
+      });
     }
-  }
+  });
   
-  // Add the last part
-  if (currentPart.trim()) {
-    parts.push(currentPart.trim());
-  }
+  return { quotedTerms, keywords };
+};
+
+// Function to create simplified query for Google Jobs
+const createSimplifiedQuery = (originalQuery: string): string => {
+  console.log('Creating simplified query from:', originalQuery);
   
-  // Join parts with " OR " - quotes will be preserved as-is without escaping
-  return parts.join(' OR ');
-}
+  const { quotedTerms, keywords } = extractSearchTerms(originalQuery);
+  
+  console.log('Extracted quoted terms:', quotedTerms);
+  console.log('Extracted keywords:', keywords);
+  
+  // Build simplified query
+  const queryParts: string[] = [];
+  
+  // Add quoted terms (job titles)
+  quotedTerms.forEach(term => {
+    queryParts.push(`"${term}"`);
+  });
+  
+  // Add important keywords (limit to most relevant)
+  const priorityKeywords = keywords.filter(keyword => 
+    ['remote', 'ai', 'artificial intelligence', 'machine learning', 'ml', 'data', 'work from home']
+    .some(priority => keyword.toLowerCase().includes(priority.toLowerCase()))
+  );
+  
+  priorityKeywords.slice(0, 3).forEach(keyword => {
+    if (!keyword.includes('work-from-home')) { // Skip hyphenated versions
+      queryParts.push(keyword);
+    }
+  });
+  
+  const simplifiedQuery = queryParts.join(' ');
+  console.log('Simplified query:', simplifiedQuery);
+  
+  return simplifiedQuery;
+};
+
+// Function to test API connectivity with simple query
+const testApiConnectivity = async (serpApiKey: string) => {
+  console.log('Testing API connectivity with simple query...');
+  
+  const testParams = new URLSearchParams({
+    engine: 'google_jobs',
+    q: 'product manager',
+    api_key: serpApiKey,
+    num: '5'
+  });
+  
+  try {
+    const response = await fetch(`https://serpapi.com/search.json?${testParams}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
+      }
+    });
+    
+    console.log('Test query response status:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Test query success - jobs found:', data.jobs_results?.length || 0);
+      return { success: true, data };
+    } else {
+      const errorText = await response.text();
+      console.log('Test query failed:', errorText);
+      return { success: false, error: errorText };
+    }
+  } catch (error) {
+    console.log('Test query error:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -76,70 +132,147 @@ serve(async (req) => {
       )
     }
 
-    // Use SerpApi directly for Google job searches
-    const serpApiUrl = 'https://serpapi.com/search.json'
-    
-    // Remove automatic date filtering from query and convert pipes to OR
-    const cleanQuery = query.replace(/after:\d{4}-\d{2}-\d{2}/, '').trim()
-    const convertedQuery = convertPipesToOR(cleanQuery)
-    
-    console.log('Original X-ray query:', query)
-    console.log('Cleaned query:', cleanQuery)
-    console.log('Converted query (pipes to OR):', convertedQuery)
-    
-    const params = new URLSearchParams({
-      engine: 'google_jobs',
-      q: convertedQuery,
-      api_key: serpApiKey,
-      chips: 'date_posted:today', // Use SerpApi's date filtering
-      num: '10' // Limit results
-    })
+    console.log('=== X-ray Search Debug Session ===');
+    console.log('Original X-ray query:', query);
 
-    console.log('Calling SerpApi with converted query:', convertedQuery)
-    console.log('Full URL:', `${serpApiUrl}?${params}`)
-
-    const response = await fetch(`${serpApiUrl}?${params}`, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
-      }
-    })
-
-    console.log('SerpApi response status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('SerpApi error response:', errorText)
+    // Step 1: Test API connectivity
+    const connectivityTest = await testApiConnectivity(serpApiKey);
+    if (!connectivityTest.success) {
+      console.log('API connectivity test failed, aborting');
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to execute search',
-          details: errorText,
-          status: response.status
+          error: 'API connectivity test failed',
+          details: connectivityTest.error
         }),
         { 
-          status: response.status, 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
 
-    const data = await response.json()
-    console.log('SerpApi response keys:', Object.keys(data))
-    console.log('Jobs results count:', data.jobs_results?.length || 0)
+    // Step 2: Create simplified query
+    const simplifiedQuery = createSimplifiedQuery(query);
     
-    // Log first job for debugging
-    if (data.jobs_results && data.jobs_results.length > 0) {
-      console.log('First job sample:', JSON.stringify(data.jobs_results[0], null, 2))
-    }
-    
-    return new Response(
-      JSON.stringify(data),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    // Step 3: Try multiple query approaches
+    const queryAttempts = [
+      {
+        name: 'Simplified Query (No Date Filter)',
+        query: simplifiedQuery,
+        chips: undefined
+      },
+      {
+        name: 'Simplified Query (Past Week)',
+        query: simplifiedQuery,
+        chips: 'date_posted:week'
+      },
+      {
+        name: 'Simplified Query (Past Month)',
+        query: simplifiedQuery,
+        chips: 'date_posted:month'
       }
-    )
+    ];
+
+    let bestResult = null;
+    let bestResultCount = 0;
+
+    for (const attempt of queryAttempts) {
+      console.log(`\n--- Trying: ${attempt.name} ---`);
+      console.log('Query:', attempt.query);
+      console.log('Date filter:', attempt.chips || 'None');
+      
+      const params = new URLSearchParams({
+        engine: 'google_jobs',
+        q: attempt.query,
+        api_key: serpApiKey,
+        num: '10'
+      });
+
+      if (attempt.chips) {
+        params.append('chips', attempt.chips);
+      }
+
+      console.log('Full request URL:', `https://serpapi.com/search.json?${params}`);
+
+      try {
+        const response = await fetch(`https://serpapi.com/search.json?${params}`, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; JobSearchBot/1.0)'
+          }
+        });
+
+        console.log('Response status:', response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Response keys:', Object.keys(data));
+          
+          const jobCount = data.jobs_results?.length || 0;
+          console.log('Jobs found:', jobCount);
+          
+          if (data.error) {
+            console.log('API Error:', data.error);
+          }
+          
+          if (jobCount > bestResultCount) {
+            bestResult = data;
+            bestResultCount = jobCount;
+            console.log(`✓ Best result so far: ${jobCount} jobs with ${attempt.name}`);
+          }
+          
+          // If we found jobs, we can stop here
+          if (jobCount > 0) {
+            console.log(`✓ Success with ${attempt.name}! Found ${jobCount} jobs`);
+            break;
+          }
+        } else {
+          const errorText = await response.text();
+          console.log('Request failed:', errorText);
+        }
+      } catch (error) {
+        console.log('Request error:', error.message);
+      }
+      
+      // Small delay between attempts
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Return the best result we found
+    if (bestResult) {
+      console.log(`\n=== Final Result: ${bestResultCount} jobs found ===`);
+      
+      if (bestResult.jobs_results && bestResult.jobs_results.length > 0) {
+        console.log('Sample job title:', bestResult.jobs_results[0].title);
+        console.log('Sample company:', bestResult.jobs_results[0].company_name);
+      }
+      
+      return new Response(
+        JSON.stringify(bestResult),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    } else {
+      console.log('\n=== No jobs found with any query approach ===');
+      return new Response(
+        JSON.stringify({ 
+          error: 'No jobs found with any query variation',
+          debug_info: {
+            original_query: query,
+            simplified_query: simplifiedQuery,
+            attempts_made: queryAttempts.length,
+            api_connectivity: 'OK'
+          }
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
   } catch (error) {
-    console.error('Edge function error:', error)
+    console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
