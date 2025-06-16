@@ -53,10 +53,10 @@ export const JobSearchTab = ({ user, onSetupAutomation, onShowResumeUpload }: Jo
     }
   };
 
-  // If no search has been performed, show the focused search interface
+  // If no search has been performed, show the focused search interface without problematic wrappers
   if (!hasSearched) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="py-12">
         <FocusedSearchInterface onSearch={onSearch} isLoading={isLoading} />
       </div>
     );

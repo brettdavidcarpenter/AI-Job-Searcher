@@ -7,7 +7,6 @@ import { ReviewQueue } from "@/components/ReviewQueue";
 import { SavedJobs } from "@/components/SavedJobs";
 import { JobSearchTab } from "@/components/JobSearchTab";
 import { MinimalNavSidebar } from "@/components/MinimalNavSidebar";
-import { MinimalHeader } from "@/components/MinimalHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
 import { usePendingReviews } from "@/hooks/usePendingReviews";
@@ -76,15 +75,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
         />
       )}
 
-      {/* Header with authentication controls */}
+      {/* Main content area without header overlay */}
       <div className={`flex-1 ${user ? 'ml-16' : ''}`}>
-        <MinimalHeader
-          user={user}
-          onSignOut={handleSignOut}
-          onShowAuth={() => setShowAuthModal(true)}
-          onShowResumeUpload={() => setShowResumeUpload(true)}
-        />
-        
         <div className="px-6 py-6">
           {activeTab === "search" && (
             <JobSearchTab 
