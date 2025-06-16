@@ -6,13 +6,12 @@ import { SearchSetup } from "@/components/SearchSetup";
 import { ReviewQueue } from "@/components/ReviewQueue";
 import { SavedJobs } from "@/components/SavedJobs";
 import { JobSearchTab } from "@/components/JobSearchTab";
-import { JobSearchLayout } from "@/components/JobSearchLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MinimalNavSidebar } from "@/components/MinimalNavSidebar";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, Bookmark } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
 import { usePendingReviews } from "@/hooks/usePendingReviews";
+import { useJobSearch } from "@/hooks/useJobSearch";
 import type { User } from "@supabase/supabase-js";
 import type { Job } from "@/pages/Index";
 
@@ -28,6 +27,7 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   
   const { savedJobs, handleSaveJob, handleUnsaveJob, handleRateJob } = useSavedJobs(user);
   const { pendingReviews, pendingCount, refreshReviews, setPendingReviews } = usePendingReviews(user);
+  const { handleInitialSearch, handleSearch } = useJobSearch(user, savedJobs);
 
   // Listen for auth modal trigger
   useEffect(() => {
@@ -62,55 +62,75 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
   };
 
   return (
-    <JobSearchLayout
-      user={user}
-      onSignOut={handleSignOut}
-      onShowAuth={() => setShowAuthModal(true)}
-      onShowResumeUpload={() => setShowResumeUpload(true)}
-    >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="search" className="text-lg py-3">
-            <Search className="h-4 w-4 mr-2" />
-            Job Search
-          </TabsTrigger>
-          <TabsTrigger value="review" className="text-lg py-3">
-            <Eye className="h-4 w-4 mr-2" />
-            Review Queue
-            {user && pendingCount > 0 && (
-              <span className="ml-1 bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs">
-                {pendingCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="saved" className="text-lg py-3" disabled={!user}>
-            <Bookmark className="h-4 w-4 mr-2" />
-            My Saved Jobs {user && savedJobs.length > 0 ? `(${savedJobs.length})` : ''}
-          </TabsTrigger>
-        </TabsList>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Only show navigation sidebar if user is signed in */}
+      {user && (
+        <MinimalNavSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          user={user}
+          pendingCount={pendingCount}
+          savedJobsCount={savedJobs.length}
+          onShowAuth={() => setShowAuthModal(true)}
+          onSignOut={handleSignOut}
+        />
+      )}
+      
+      <div className={`flex-1 ${user ? 'ml-16' : ''}`}>
+        {/* Floating auth button for non-authenticated users */}
+        {!user && (
+          <div className="absolute top-6 right-6 z-30">
+            <Button 
+              onClick={() => setShowAuthModal(true)} 
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Sign In
+            </Button>
+          </div>
+        )}
 
-        <TabsContent value="search" className="space-y-6">
-          <JobSearchTab user={user} onSetupAutomation={handleSetupAutomation} />
-        </TabsContent>
+        {/* Floating sign out button for authenticated users */}
+        {user && (
+          <div className="absolute top-6 right-6 z-30 flex items-center gap-3">
+            <span className="text-sm text-gray-600">{user.email}</span>
+            <Button 
+              variant="outline" 
+              onClick={handleSignOut}
+              size="sm"
+            >
+              Sign Out
+            </Button>
+          </div>
+        )}
+        
+        <div className="px-6 py-6">
+          {activeTab === "search" && (
+            <JobSearchTab 
+              user={user} 
+              onSetupAutomation={handleSetupAutomation}
+              onShowResumeUpload={() => setShowResumeUpload(true)}
+            />
+          )}
 
-        <TabsContent value="review">
-          <ReviewQueue 
-            user={user} 
-            onSaveJob={onSaveJob}
-            pendingReviews={pendingReviews}
-            setPendingReviews={setPendingReviews}
-            refreshReviews={refreshReviews}
-          />
-        </TabsContent>
+          {activeTab === "review" && user && (
+            <ReviewQueue 
+              user={user} 
+              onSaveJob={onSaveJob}
+              pendingReviews={pendingReviews}
+              setPendingReviews={setPendingReviews}
+              refreshReviews={refreshReviews}
+            />
+          )}
 
-        <TabsContent value="saved">
-          {user ? (
+          {activeTab === "saved" && user && (
             <SavedJobs
               savedJobs={savedJobs}
               onUnsave={onUnsaveJob}
               onRate={handleRateJob}
             />
-          ) : (
+          )}
+
+          {activeTab === "saved" && !user && (
             <div className="text-center py-12">
               <p className="text-xl text-gray-500 mb-2">Please sign in to view your saved jobs</p>
               <p className="text-gray-400 mb-6">Save jobs while browsing to build your personal collection</p>
@@ -119,8 +139,8 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
               </Button>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
       
       <AuthModal 
         isOpen={showAuthModal} 
@@ -166,6 +186,6 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
           </div>
         </div>
       )}
-    </JobSearchLayout>
+    </div>
   );
 };
