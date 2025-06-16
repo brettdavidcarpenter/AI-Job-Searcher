@@ -7,7 +7,7 @@ import { ReviewQueue } from "@/components/ReviewQueue";
 import { SavedJobs } from "@/components/SavedJobs";
 import { JobSearchTab } from "@/components/JobSearchTab";
 import { MinimalNavSidebar } from "@/components/MinimalNavSidebar";
-import { Button } from "@/components/ui/button";
+import { MinimalHeader } from "@/components/MinimalHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedJobs } from "@/hooks/useSavedJobs";
 import { usePendingReviews } from "@/hooks/usePendingReviews";
@@ -75,33 +75,15 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
           onSignOut={handleSignOut}
         />
       )}
-      
-      <div className={`flex-1 ${user ? 'ml-16' : ''}`}>
-        {/* Floating auth button for non-authenticated users */}
-        {!user && (
-          <div className="absolute top-6 right-6 z-30">
-            <Button 
-              onClick={() => setShowAuthModal(true)} 
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Sign In
-            </Button>
-          </div>
-        )}
 
-        {/* Floating sign out button for authenticated users */}
-        {user && (
-          <div className="absolute top-6 right-6 z-30 flex items-center gap-3">
-            <span className="text-sm text-gray-600">{user.email}</span>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut}
-              size="sm"
-            >
-              Sign Out
-            </Button>
-          </div>
-        )}
+      {/* Header with authentication controls */}
+      <div className={`flex-1 ${user ? 'ml-16' : ''}`}>
+        <MinimalHeader
+          user={user}
+          onSignOut={handleSignOut}
+          onShowAuth={() => setShowAuthModal(true)}
+          onShowResumeUpload={() => setShowResumeUpload(true)}
+        />
         
         <div className="px-6 py-6">
           {activeTab === "search" && (
@@ -134,9 +116,6 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             <div className="text-center py-12">
               <p className="text-xl text-gray-500 mb-2">Please sign in to view your saved jobs</p>
               <p className="text-gray-400 mb-6">Save jobs while browsing to build your personal collection</p>
-              <Button onClick={() => setShowAuthModal(true)} className="bg-blue-600 hover:bg-blue-700">
-                Sign In / Sign Up
-              </Button>
             </div>
           )}
         </div>
@@ -153,13 +132,12 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Resume Upload</h2>
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setShowResumeUpload(false)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                 >
                   ×
-                </Button>
+                </button>
               </div>
               <ResumeUpload user={user} />
             </div>
@@ -173,13 +151,12 @@ export const JobSearchApp = ({ user }: JobSearchAppProps) => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Set Up Automated Searches</h2>
-                <Button
-                  variant="ghost"
+                <button
                   onClick={() => setShowSetupModal(false)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
                 >
                   ×
-                </Button>
+                </button>
               </div>
               <SearchSetup user={user} onJobsFound={handleJobsFound} />
             </div>
